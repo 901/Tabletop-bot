@@ -107,7 +107,7 @@ def handle_command(user_id, command, channel):
             response += " "
             response += "\n"
         #response = "Sure...write some more code then I can do that!"
-        response += "To participate type: <@tabletop-bot ttt-play [1-3] [1-3]> where 1-9 correspond to the squares from top left to bottom right."
+        response += "To participate type: <@tabletop-bot ttt-play [1-3] [1-3]> where 1-3 correspond to the rows and columns from left to right."
 
     if command.startswith(ttt_play):
         row = command.split(" ")[1]
@@ -156,7 +156,7 @@ def handle_command(user_id, command, channel):
                 turn = "Red Team"
             if ttt_turn == 1:
                 turn = "Blue Team"
-            response += "\nCongrats! {} has won this round! Restart this game with <@tabletop_bot tt-start>\n".format(turn)
+            response += "\nCongrats! {} has won this round! Restart this game with <@tabletop_bot ttt-start>\n".format(turn)
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
@@ -164,7 +164,7 @@ def handle_command(user_id, command, channel):
             )
             return None
         #response = "Sure...write some more code then I can do that!"
-        response += "To participate type: <@tabletop-bot ttt-play [1-3] [1-3]> where 1-9 correspond to the squares from top left to bottom right."
+        response += "To participate type: <@tabletop-bot ttt-play [1-3] [1-3]> where 1-3 correspond to the rows and columns from left to right."
 
     # Sends the response back to the channel
     slack_client.api_call(
@@ -243,9 +243,9 @@ if __name__ == "__main__":
                     blue_team += ", "
                 name = ""
         if len(red_team) > 0:
-            red_team += " is on Red Team!\n"
+            red_team += " --> on Red Team!\n"
         if len(blue_team) > 0:
-            blue_team += " is on Blue Team!"
+            blue_team += " --> on Blue Team!"
 
         slack_client.api_call(
             "chat.postMessage",
