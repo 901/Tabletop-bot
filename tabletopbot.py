@@ -22,6 +22,7 @@ MENTION_REGEX = "^<@(|[WU].+)>(.*)"
 RED_TEAM = []
 BLUE_TEAM = []
 members_list = {}
+counter = 0
 
 #Tic tac toe set
 ttt_board = [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]
@@ -44,12 +45,12 @@ def parse_bot_commands(slack_events):
         If its not found, then this function returns None, None.
     """
     channel = ""
+    global counter
     for event in slack_events:
         if event["type"] == "message" and not "subtype" in event:
             blank, message = parse_direct_mention(event["text"])
             user_id = event["user"]
-            """message = event["text"]"""
-            print(message + " " + user_id)
+            #print(message + " " + user_id)
             channel = event["channel"]
             return user_id, message, event["channel"]
         if event["type"] == "team_join" and not "subtype" in event:
@@ -149,6 +150,19 @@ def handle_command(user_id, command, channel):
             response += str(x)
             response += " "
             response += "\n"
+
+        if CheckTTTVictory(targetx, targety):
+            if ttt_turn == 0:
+                turn = "Red Team"
+            if ttt_turn == 1:
+                turn = "Blue Team"
+            response += "\nCongrats! {} has won this round! Restart this game with <@tabletop_bot tt-start>\n".format(turn)
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
         #response = "Sure...write some more code then I can do that!"
         response += "To participate type: <@tabletop-bot ttt-play [1-3] [1-3]> where 1-9 correspond to the squares from top left to bottom right."
 
@@ -159,27 +173,36 @@ def handle_command(user_id, command, channel):
         text=response
     )
 
-"""def updateBoard(x, y):
+"""def updateBoard(x, y):"""
 
 
 def CheckTTTVictory(x, y):
+    global ttt_board
     #check if previous move caused a win on vertical line
-    if board[0][y] == board[1][y] == board [2][y]:
+    if (ttt_board[0][y] == ttt_board[1][y] == ttt_board[2][y]):
+        if (ttt_board[0][y] == "-" or ttt_board[1][y] == "-" or ttt_board[2][y] == "-"):
+            return False
         return True
 
     #check if previous move caused a win on horizontal line
-    if board[x][0] == board[x][1] == board [x][2]:
+    if ttt_board[x][0] == ttt_board[x][1] == ttt_board[x][2]:
+        if ttt_board[x][0] == "-" or ttt_board[x][1] == "-" or ttt_board[x][2] == "-":
+            return False
         return True
 
     #check if previous move was on the main diagonal and caused a win
-    if x == y and board[0][0] == board[1][1] == board [2][2]:
+    if x == y and ttt_board[0][0] == ttt_board[1][1] == ttt_board[2][2]:
+        if x == y and ttt_board[0][0] == "-" or ttt_board[1][1] == "-" or ttt_board[2][2] == "-":
+            return False
         return True
 
     #check if previous move was on the secondary diagonal and caused a win
-    if x + y == 2 and board[0][2] == board[1][1] == board [2][0]:
+    if x + y == 2 and ttt_board[0][2] == ttt_board[1][1] == ttt_board[2][0]:
+        if x + y == 2 and ttt_board[0][2] == "-" or ttt_board[1][1] == "-" or ttt_board[2][0] == "-":
+            return False
         return True
 
-    return False"""
+    return False
 
 if __name__ == "__main__":
     count = 0
@@ -210,16 +233,17 @@ if __name__ == "__main__":
             for member in RED_TEAM:
                 name = members_list[member]
                 red_team += name
-                red_team += ","
+                red_team += ", "
                 name = ""
         if len(BLUE_TEAM) > 0:
             for member in BLUE_TEAM:
                 name = members_list[member]
                 blue_team += name
-                blue_team += ", "
+                if member is not BLUE_TEAM[len(BLUE_TEAM)-1]:
+                    blue_team += ", "
                 name = ""
         if len(red_team) > 0:
-            red_team += " is on Red Team! "
+            red_team += " is on Red Team!\n"
         if len(blue_team) > 0:
             blue_team += " is on Blue Team!"
 
