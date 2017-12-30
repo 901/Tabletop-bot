@@ -33,8 +33,6 @@ def construct_userlist(userlist):
     for member_info in userlist["members"]:
         name = member_info["real_name"].encode("ascii", "ignore")
         member_dict[member_info["id"]] = name
-
-    #print(member_dict)
     return member_dict
 
 def parse_bot_commands(slack_events):
@@ -49,7 +47,6 @@ def parse_bot_commands(slack_events):
         if event["type"] == "message" and not "subtype" in event:
             blank, message = parse_direct_mention(event["text"])
             user_id = event["user"]
-            #print(message + " " + user_id)
             channel = event["channel"]
             return user_id, message, event["channel"]
         if event["type"] == "team_join" and not "subtype" in event:
@@ -61,7 +58,6 @@ def parse_bot_commands(slack_events):
                     text="Welcome to Red Team!"
                 )
                 counter = (counter + 1) % 2
-                return None, None, channel
             if counter == 1:
                 BLUE_TEAM.append(event["user"])
                 slack_client.api_call(
@@ -70,8 +66,6 @@ def parse_bot_commands(slack_events):
                     text="Welcome to Blue Team!"
                 )
                 counter = (counter + 1) % 2
-                return None, None, channel
-
     return None, None, None
 
 def parse_direct_mention(message_text):
@@ -91,9 +85,9 @@ def handle_command(user_id, command, channel):
     ttt_start = "ttt-start"
     ttt_play = "ttt-play"
     ttt_help = "ttt_help"
+    placement = lambda y: {1:(0,0), 2:(0,1), 3:(0,2), 4:(1,0), 5:(1,1), 6:(1,2), 7:(2,0), 8:(2,1), 9:(2,2)}[y]
     global ttt_turn, ttt_board
     # Default response is help text for the user
-    default_response = "Not sure what you mean. Try *{}*.".format(EXAMPLE_COMMAND)
 
     # Finds and executes the given command, filling in response
     response = ""
@@ -107,30 +101,20 @@ def handle_command(user_id, command, channel):
             response += " "
             response += "\n"
         #response = "Sure...write some more code then I can do that!"
-        response += "To participate type: <@tabletop-bot ttt-play [1-3] [1-3]> where 1-3 correspond to the rows and columns from left to right."
+        response += "To participate type: <@tabletop-bot ttt-play [1-9]> Must be 1-9 from top left -> bottom right."
 
     if command.startswith(ttt_help):
-        response += "To participate type: <@tabletop-bot ttt-play [1-3] [1-3]> where 1-3 correspond to the rows and columns from left to right."
-        response += "\n[1 1] [1 2] [1 3]\n[2 1] [2 2] [2 3]\n [3 1] [3 2] [3 3]\n"
-        if ttt_turn == 0:
-            turn = "Red Team"
-        if ttt_turn == 1:
-            turn = "Blue Team"
-        if user_id in RED_TEAM:
-            team = "Red"
-        if user_id in BLUE_TEAM:
-            team = "Blue"
-        response += "You are on {} Team. It is currently {}'s turn.\n".format(team , turn)
+        response += "To participate type: <@tabletop-bot ttt-play [1-9]> where 1-9 correspond to top left -> bottom right."
+        response += "\n[1] [2] [3]\n[4] [5] [6]\n [7] [8] [9]\n"
+        response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(ttt_turn))
 
 
     if command.startswith(ttt_play):
-        row = command.split(" ")[1]
-        column = command.split(" ")[2]
+        target = command.split(" ")[1]
         try:
-            targetx = int(row) - 1
-            targety = int(column) - 1
+            target = int(target)
         except TypeError:
-            response = "Illegal command format: try <@tabletop_bot ttt-play [1-3] [1-3]>"
+            response = "Illegal command format: try <@tabletop_bot ttt-play [1-9]>"
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
@@ -138,9 +122,10 @@ def handle_command(user_id, command, channel):
             )
             return None
         #print(str(targetx) + " " + str(targety) + " " + str(user_id))
-        if (targetx < 0 or targetx > 3) or (targety < 0 or targety > 3):
-            response = "Illegal bounds on target coordinates. Must be 1-3 1-3 as row and column"
+        if target < 1 or target > 9:
+            response = "Illegal bounds on target coordinates. Must be 1-9 which correspond to top left -> bottom right"
         if (ttt_turn == 0 and str(user_id) in RED_TEAM): #valid action -> handle it
+            targetx,targety = placement(target)
             if ttt_board[targetx][targety] is "-":
                 ttt_board[targetx][targety] = "X"
                 ttt_turn = (ttt_turn + 1) % 2
@@ -148,16 +133,13 @@ def handle_command(user_id, command, channel):
                 response = "Cannot place there, there already exists a mark."
         elif (ttt_turn == 1 and str(user_id) in BLUE_TEAM): #valid action -> handle it
             if ttt_board[targetx][targety] is "-":
+                targetx,targety = placement(target)
                 ttt_board[targetx][targety] = "O"
                 ttt_turn = (ttt_turn + 1) % 2
             else:
                 response = "Cannot place there, there already exists a mark."
         else:
-            if ttt_turn == 0:
-                turn = "Red Team"
-            if ttt_turn == 1:
-                turn = "Blue Team"
-            response = "It is not your team's turn {}, it is currently {}'s turn.\n".format(members_list[user_id], turn)
+            response = "It is not your team's turn {}, it is currently {}'s turn.\n".format(members_list[user_id], currentTurn(ttt_turn))
 
         response += "\n"
         for x in ttt_board:
@@ -166,11 +148,7 @@ def handle_command(user_id, command, channel):
             response += "\n"
 
         if CheckTTTVictory(targetx, targety):
-            if ttt_turn == 0:
-                turn = "Red Team"
-            if ttt_turn == 1:
-                turn = "Blue Team"
-            response += "\nCongrats! {} has won this round! Restart this game with <@tabletop_bot ttt-start>\n".format(turn)
+            response += "\nCongrats! {} has won this round! Restart this game with <@tabletop_bot ttt-start>\n".format(currentTurn(ttt_turn))
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
@@ -178,7 +156,7 @@ def handle_command(user_id, command, channel):
             )
             return None
         #response = "Sure...write some more code then I can do that!"
-        response += "To participate type: <@tabletop-bot ttt-play [1-3] [1-3]> where 1-3 correspond to the rows and columns from left to right."
+        response += "To participate type: <@tabletop-bot ttt-play [1-9]> where 1-9 correspond to top-left to bottom-right."
 
     # Sends the response back to the channel
     slack_client.api_call(
@@ -186,6 +164,21 @@ def handle_command(user_id, command, channel):
         channel=channel,
         text=response
     )
+
+def getUserTeam(user_id):
+    global RED_TEAM, BLUE_TEAM
+    if user_id in RED_TEAM:
+        return "Red Team"
+    elif user_id in BLUE_TEAM:
+        return "Blue Team"
+    else:
+        return "Unknown team"
+
+def currentTurn(turn):
+    if turn == 0:
+        return "Red Team"
+    elif turn == 1:
+        return "Blue Team"
 
 def CheckTTTVictory(x, y):
     global ttt_board
