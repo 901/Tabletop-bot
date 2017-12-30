@@ -4,8 +4,7 @@ import re
 from slackclient import SlackClient
 
 """
-TODO: ~~everything~~
-- add checks for row/col bound on ttt board
+TODO: add other games, make sure ttt works
 """
 # instantiate Slack client
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
@@ -91,10 +90,11 @@ def handle_command(user_id, command, channel):
     """
     ttt_start = "ttt-start"
     ttt_play = "ttt-play"
+    ttt_help = "ttt_help"
     global ttt_turn, ttt_board
     # Default response is help text for the user
     default_response = "Not sure what you mean. Try *{}*.".format(EXAMPLE_COMMAND)
-    print(user_id, command)
+
     # Finds and executes the given command, filling in response
     response = ""
     # This is where you start to implement more commands!
@@ -108,6 +108,20 @@ def handle_command(user_id, command, channel):
             response += "\n"
         #response = "Sure...write some more code then I can do that!"
         response += "To participate type: <@tabletop-bot ttt-play [1-3] [1-3]> where 1-3 correspond to the rows and columns from left to right."
+
+    if command.startswith(ttt_help):
+        response += "To participate type: <@tabletop-bot ttt-play [1-3] [1-3]> where 1-3 correspond to the rows and columns from left to right."
+        response += "\n[1 1] [1 2] [1 3]\n[2 1] [2 2] [2 3]\n [3 1] [3 2] [3 3]\n"
+        if ttt_turn == 0:
+            turn = "Red Team"
+        if ttt_turn == 1:
+            turn = "Blue Team"
+        if user_id in RED_TEAM:
+            team = "Red"
+        if user_id in BLUE_TEAM:
+            team = "Blue"
+        response += "You are on {} Team. It is currently {}'s turn.\n".format(team , turn)
+
 
     if command.startswith(ttt_play):
         row = command.split(" ")[1]
@@ -173,9 +187,6 @@ def handle_command(user_id, command, channel):
         text=response
     )
 
-"""def updateBoard(x, y):"""
-
-
 def CheckTTTVictory(x, y):
     global ttt_board
     #check if previous move caused a win on vertical line
@@ -214,8 +225,6 @@ if __name__ == "__main__":
         # Get all users currently in the channel first, and assign them to a team
         channel_curr_info = slack_client.api_call("channels.info",channel=gamesCID)
         members_list = construct_userlist(slack_client.api_call("users.list"))
-        #print(slack_client.api_call("users.list"))
-        #print(members_list)
 
         for memID, username in members_list.iteritems():
             if username == "slackbot" or username == "tabletop_bot":
@@ -243,9 +252,17 @@ if __name__ == "__main__":
                     blue_team += ", "
                 name = ""
         if len(red_team) > 0:
-            red_team += " --> on Red Team!\n"
+            if len(red_team) == 1:
+                red_team += " is"
+            else:
+                red_team += " are"
+            red_team += " on Red Team!\n"
         if len(blue_team) > 0:
-            blue_team += " --> on Blue Team!"
+            if len(red_team) == 1:
+                blue_team += " is"
+            else:
+                blue_team += " are"
+            blue_team += " on Blue Team!"
 
         slack_client.api_call(
             "chat.postMessage",
