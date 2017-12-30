@@ -2,7 +2,7 @@
 A simple slackbot that allows you to add team game functionality to your workspace!
 Currently supports tic-tac-toe
 
-#Installation
+# Installation
 - clone the directory
 - $virtualenv tbbot
 - $source tbbot/bin/activate
