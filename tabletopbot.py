@@ -84,7 +84,7 @@ def handle_command(user_id, command, channel):
     """
     ttt_start = "ttt-start"
     ttt_play = "ttt-play"
-    ttt_help = "ttt_help"
+    ttt_help = "ttt-help"
     placement = lambda y: {1:(0,0), 2:(0,1), 3:(0,2), 4:(1,0), 5:(1,1), 6:(1,2), 7:(2,0), 8:(2,1), 9:(2,2)}[y]
     global ttt_turn, ttt_board
     # Default response is help text for the user
@@ -121,19 +121,19 @@ def handle_command(user_id, command, channel):
                 text=response
             )
             return None
-        #print(str(targetx) + " " + str(targety) + " " + str(user_id))
+
         if target < 1 or target > 9:
             response = "Illegal bounds on target coordinates. Must be 1-9 which correspond to top left -> bottom right"
-        if (ttt_turn == 0 and str(user_id) in RED_TEAM): #valid action -> handle it
-            targetx,targety = placement(target)
+        targetx,targety = placement(target)
+
+        if ttt_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
             if ttt_board[targetx][targety] is "-":
                 ttt_board[targetx][targety] = "X"
                 ttt_turn = (ttt_turn + 1) % 2
             else:
                 response = "Cannot place there, there already exists a mark."
-        elif (ttt_turn == 1 and str(user_id) in BLUE_TEAM): #valid action -> handle it
+        elif ttt_turn == 1 and str(user_id) in BLUE_TEAM: #valid action -> handle it
             if ttt_board[targetx][targety] is "-":
-                targetx,targety = placement(target)
                 ttt_board[targetx][targety] = "O"
                 ttt_turn = (ttt_turn + 1) % 2
             else:
@@ -251,7 +251,7 @@ if __name__ == "__main__":
                 red_team += " are"
             red_team += " on Red Team!\n"
         if len(blue_team) > 0:
-            if len(red_team) == 1:
+            if len(blue_team) == 1:
                 blue_team += " is"
             else:
                 blue_team += " are"
