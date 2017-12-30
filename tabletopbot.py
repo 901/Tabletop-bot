@@ -5,6 +5,9 @@ from slackclient import SlackClient
 
 """
 TODO: add other games, make sure ttt works
+- super tic tac Toe
+- connect 4
+- pokemon??
 """
 # instantiate Slack client
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
@@ -26,6 +29,9 @@ counter = 0
 #Tic tac toe set
 ttt_board = [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]
 ttt_turn = 0
+
+#Super Tic tac toe set
+sttt_turn = 0
 
 # userlist is a JSON returned by users.list api call
 def construct_userlist(userlist):
@@ -80,8 +86,15 @@ def parse_direct_mention(message_text):
 #this method has to handle gamestate + turn order --> respond accordingly
 def handle_command(user_id, command, channel):
     """
-        Executes bot command if the command is known
+        Executes bot command if the command is known, and passes it to the correct handler
     """
+    if command.startswith("ttt"):
+        handleTTT(user_id, command, channel)
+
+    if command.startswith("sttt"):
+        handleSTTT(user_id, command, channel)
+
+def handleTTT(user_id, command, channel):
     ttt_start = "ttt-start"
     ttt_play = "ttt-play"
     ttt_help = "ttt-help"
@@ -165,6 +178,131 @@ def handle_command(user_id, command, channel):
         text=response
     )
 
+def handleSTTT(user_id, command, channel):
+    global sttt_turn
+    sttt_start = "sttt-start"
+    sttt_play = "sttt-play"
+    sttt_help = "sttt-help"
+    placement = lambda y: {1:(0,0), 2:(0,1), 3:(0,2), 4:(1,0), 5:(1,1), 6:(1,2), 7:(2,0), 8:(2,1), 9:(2,2)}[y]
+    outer_placement = lambda y: {'a':0, 'b':1, 'c':2, 'd':3, 'e':4, 'f':5, 'g':6, 'h':7, 'i':8}[y]
+    count = 0
+    sttt_board = [[["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
+                    [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
+                    [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]]
+    # Default response is help text for the user
+
+    # Finds and executes the given command, filling in response
+    response = ""
+    # This is where you start to implement more commands!
+    if command.startswith(sttt_start):
+        sttt_turn = 0
+        response = "Starting SUPER Tic-Tac-Toe! It is now Red Team's turn. This is the board:\n"
+        count = 0
+        #will work out rendering a better image later
+        sttt_board = [
+                        [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],[["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
+                        [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
+                        [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]
+                    ]
+        #Actual output visualization should be:
+        #[0][0] [1][0] [2][0]
+        #[0][1] [1][1] [2][1]
+        #[0][2] [1][2] [2][2]
+        #divider
+        #[3][0] [4][0] [5][0]
+        #...
+        #[3][2] [4][2] [5][2]
+        #divider
+        #[6][0] [7][0] [8][0]
+        #...
+        #[6][2] [7][2] [8][2]
+        
+        for x in sttt_board:
+            response += str(x[0])
+            response += " || "
+            response += str(x[1])
+            response += " || "
+            response += str(x[2])
+            count += 3
+            if count % 3 == 0:
+                response += "\n"
+            if count % 9 == 0:
+                response += "=======||=======||=======\n"
+
+        #response = "Sure...write some more code then I can do that!"
+        response += "To participate type: <@tabletop-bot sttt-play [a-i] [1-9]> Where a-i correspond to the outer boards top-left -> bottom right and 1-9 from top left -> bottom right in the respective inner squares"
+
+    if command.startswith(sttt_help):
+        response += "To participate type: <@tabletop-bot sttt-play [a-i] [1-9]> Where a-i correspond to the outer boards top-left -> bottom right and 1-9 from top left -> bottom right in the respective inner squares"
+        response += "Outer Boards: [a] [b] [c]\n[d] [e] [f]\n[g] [h] [i]\nInner Boards for each a-i: [1] [2] [3]\n[4] [5] [6]\n [7] [8] [9]\n"
+        response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(ttt_turn))
+
+
+    if command.startswith(sttt_play):
+        target_outer = command.split(" ")[1]
+        target_inner = command.split(" ")[2]
+        try:
+            target_inner = int(target_inner)
+        except TypeError:
+            response = "Illegal command format: try <@tabletop_bot ttt-play [1-9]>"
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+
+        if (target_inner < 1 or target_inner > 9) or (target_outer < 'a' or target_outer > 'i'):
+            response = "Illegal bounds on target coordinates. Must be a-i 1-9 which correspond to top left -> bottom right outer and inner"
+        targetx,targety = placement(target_inner)
+        outertarget = outer_placement(target_outer)
+
+        if sttt_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
+            if sttt_board[outertarget][targetx][targety] is "-":
+                sttt_board[outertarget][targetx][targety] = "X"
+                sttt_turn = (sttt_turn + 1) % 2
+            else:
+                response = "Cannot place there, there already exists a mark."
+        elif sttt_turn == 1 and str(user_id) in BLUE_TEAM: #valid action -> handle it
+            if sttt_board[outertarget][targetx][targety] is "-":
+                sttt_board[outertarget][targetx][targety] = "O"
+                sttt_turn = (sttt_turn + 1) % 2
+            else:
+                response = "Cannot place there, there already exists a mark."
+        else:
+            response = "It is not your team's turn {}, it is currently {}'s turn.\n".format(members_list[user_id], currentTurn(ttt_turn))
+
+        response += "\n"
+        counter = 0
+        for x in sttt_board:
+            response += str(x[0])
+            response += " || "
+            response += str(x[1])
+            response += " || "
+            response += str(x[2])
+            count += 3
+            if count % 3 == 0:
+                response += "\n"
+            if count % 9 == 0:
+                response += "=======||=======||=======\n"
+
+        """if CheckTTTVictory(targetx, targety):
+            response += "\nCongrats! {} has won this round! Restart this game with <@tabletop_bot ttt-start>\n".format(currentTurn(ttt_turn))
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None"""
+        #response = "Sure...write some more code then I can do that!"
+        response += "To participate type: <@tabletop-bot ttt-play [1-9]> where 1-9 correspond to top-left to bottom-right."
+    # Sends the response back to the channel
+    slack_client.api_call(
+        "chat.postMessage",
+        channel=channel,
+        text=response
+    )
+
 def getUserTeam(user_id):
     global RED_TEAM, BLUE_TEAM
     if user_id in RED_TEAM:
@@ -211,7 +349,7 @@ def CheckTTTVictory(x, y):
 if __name__ == "__main__":
     count = 0
     if slack_client.rtm_connect(with_team_state=False):
-        print("Starter Bot connected and running!")
+        print("Tabletop Bot connected and running!")
 
         # Read bot's user ID by calling Web API method `auth.test`
         starterbot_id = slack_client.api_call("auth.test")["user_id"]
@@ -241,17 +379,16 @@ if __name__ == "__main__":
             for member in BLUE_TEAM:
                 name = members_list[member]
                 blue_team += name
-                if member is not BLUE_TEAM[len(BLUE_TEAM)-1]:
-                    blue_team += ", "
+                blue_team += ", "
                 name = ""
         if len(red_team) > 0:
-            if len(red_team) == 1:
+            if len(RED_TEAM) == 1:
                 red_team += " is"
             else:
                 red_team += " are"
             red_team += " on Red Team!\n"
         if len(blue_team) > 0:
-            if len(blue_team) == 1:
+            if len(BLUE_TEAM) == 1:
                 blue_team += " is"
             else:
                 blue_team += " are"
