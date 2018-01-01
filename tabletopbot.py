@@ -12,8 +12,7 @@ TODO: add other games, make sure ttt works
 # instantiate Slack client
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 # starterbot's user ID in Slack: value is assigned after the bot starts up
-starterbot_id = None
-gamesCID = "C8LJ4KMN1"
+bot_id = None
 
 # constants
 RTM_READ_DELAY = 0.1 # 1 second delay between reading from RTM
@@ -29,14 +28,18 @@ counter = 0
 #Tic tac toe set
 ttt_board = [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]
 ttt_turn = 0
+countTurns = 0
 
 #Super Tic tac toe set
 sttt_turn = 0
 
 # userlist is a JSON returned by users.list api call
 def construct_userlist(userlist):
+    global bot_id
     member_dict = {}
     for member_info in userlist["members"]:
+        if member_info["real_name"] is "tabletop_bot":
+            bot_id = member_info["id"]
         name = member_info["real_name"].encode("ascii", "ignore")
         member_dict[member_info["id"]] = name
     return member_dict
@@ -99,16 +102,19 @@ def handleTTT(user_id, command, channel):
     ttt_play = "ttt-play"
     ttt_help = "ttt-help"
     placement = lambda y: {1:(0,0), 2:(0,1), 3:(0,2), 4:(1,0), 5:(1,1), 6:(1,2), 7:(2,0), 8:(2,1), 9:(2,2)}[y]
-    global ttt_turn, ttt_board
-    # Default response is help text for the user
+    global countTurns, ttt_turn, ttt_board
 
     # Finds and executes the given command, filling in response
     response = ""
-    # This is where you start to implement more commands!
+
+    """
+        Command <ttt-start>: restarts the game, initiates turn where it left off
+    """
     if command.startswith(ttt_start):
         ttt_board = [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]
         ttt_turn = 0
-        response = "Starting Tic-Tac-Toe! It is now Red Team's turn. This is the board:\n"
+        countTurns = 0
+        response = "Starting Tic-Tac-Toe! It is now {}'s turn. This is the board:\n".format(currentTurn(ttt_turn))
         for x in ttt_board:
             response += str(x)
             response += " "
@@ -116,12 +122,17 @@ def handleTTT(user_id, command, channel):
         #response = "Sure...write some more code then I can do that!"
         response += "To participate type: <@tabletop-bot ttt-play [1-9]> Must be 1-9 from top left -> bottom right."
 
+    """
+        Command <ttt-help>: prints out a helper message so the user can figure out their team and how to play
+    """
     if command.startswith(ttt_help):
         response += "To participate type: <@tabletop-bot ttt-play [1-9]> where 1-9 correspond to top left -> bottom right."
         response += "\n[1] [2] [3]\n[4] [5] [6]\n [7] [8] [9]\n"
         response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(ttt_turn))
 
-
+    """
+        Command <ttt-play [1-9]>: takes in a user input target 1-9 and places their respective mark on the board
+    """
     if command.startswith(ttt_play):
         target = command.split(" ")[1]
         try:
@@ -137,40 +148,91 @@ def handleTTT(user_id, command, channel):
 
         if target < 1 or target > 9:
             response = "Illegal bounds on target coordinates. Must be 1-9 which correspond to top left -> bottom right"
-        targetx,targety = placement(target)
-
-        if ttt_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
-            if ttt_board[targetx][targety] is "-":
-                ttt_board[targetx][targety] = "X"
-                ttt_turn = (ttt_turn + 1) % 2
-            else:
-                response = "Cannot place there, there already exists a mark."
-        elif ttt_turn == 1 and str(user_id) in BLUE_TEAM: #valid action -> handle it
-            if ttt_board[targetx][targety] is "-":
-                ttt_board[targetx][targety] = "O"
-                ttt_turn = (ttt_turn + 1) % 2
-            else:
-                response = "Cannot place there, there already exists a mark."
-        else:
-            response = "It is not your team's turn {}, it is currently {}'s turn.\n".format(members_list[user_id], currentTurn(ttt_turn))
-
-        response += "\n"
-        for x in ttt_board:
-            response += str(x)
-            response += " "
-            response += "\n"
-
-        if CheckTTTVictory(targetx, targety):
-            response += "\nCongrats! {} has won this round! Restart this game with <@tabletop_bot ttt-start>\n".format(currentTurn(ttt_turn))
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
                 text=response
             )
             return None
+        targetx,targety = placement(target)
+
+        if ttt_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
+            if ttt_board[targetx][targety] is "-":
+                ttt_board[targetx][targety] = "X"
+            else:
+                response = "Cannot place there, there already exists a mark."
+                response += "\n"
+                for x in ttt_board:
+                    response += str(x)
+                    response += " "
+                    response += "\n"
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+                return None
+        elif ttt_turn == 1 and str(user_id) in BLUE_TEAM: #valid action -> handle it
+            if ttt_board[targetx][targety] is "-":
+                ttt_board[targetx][targety] = "O"
+            else:
+                response = "Cannot place there, there already exists a mark."
+                response += "\n"
+                for x in ttt_board:
+                    response += str(x)
+                    response += " "
+                    response += "\n"
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+                return None
+        else:
+            response = "It is not your team's turn {}, it is currently {}'s turn.\n".format(members_list[user_id].split(" ")[0], currentTurn(ttt_turn))
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+
+        countTurns += 1 #check the overall number of turns in the game, if too many, call it.
+
+        #print the current board state
+        response += "\n"
+        for x in ttt_board:
+            response += str(x)
+            response += " "
+            response += "\n"
+
+        #victory check after every move, and restart the game if a victor is found
+        if CheckTTTVictory(targetx, targety):
+            response += "\nCongrats! {} has won this round! Play another round with <@tabletop_bot ttt-play [1-9]>\n".format(currentTurn(ttt_turn))
+            response += "{} will start the next round.\n".format(currentTurn(ttt_turn))
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            ttt_board = [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]] #reset the board
+            return None
+        else:
+            if countTurns is 9:
+                print("Entered this clause")
+                response += "\nEnough - this board looks filled. Its a tie!\n Play another round with <@tabletop_bot ttt-play [1-9]>\n"
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+                ttt_board = [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]] #reset the board
+                countTurns = 0
+                return None
         #response = "Sure...write some more code then I can do that!"
         response += "To participate type: <@tabletop-bot ttt-play [1-9]> where 1-9 correspond to top-left to bottom-right."
-
+        ttt_turn = (ttt_turn + 1) % 2
+        print("turns: " + str(countTurns))
     # Sends the response back to the channel
     slack_client.api_call(
         "chat.postMessage",
@@ -346,33 +408,28 @@ def CheckTTTVictory(x, y):
 """
     Finds out which channel this bot is a part of and set the channel ID accordingly
 """
-def setChannelID(slack_client, members_list):
-    botID = ""
+def setChannelID(slack_client, members_list, bot_id):
     channels = slack_client.api_call("channels.list")
     print("setting Channel ID")
-    for k,v in members_list.iteritems():
-        if v == "tabletop_bot":
-            botID = k
-            break
     for c in channels["channels"]:
-        if botID in c["members"]:
+        if bot_id in c["members"]:
             gamesCID = c["id"]
             print("Set bot channel to: " + str(c["name"] + " with ID: " + str(c["id"])))
-            return gamesCID
+            return c["id"]
 
 if __name__ == "__main__":
     count = 0
     if slack_client.rtm_connect(with_team_state=False):
-        print("Tabletop Bot connected and running!")
+        print("Tabletop Bot connected and running! + bot_id: ")
 
         # Read bot's user ID by calling Web API method `auth.test`
-        starterbot_id = slack_client.api_call("auth.test")["user_id"]
+        bot_id = slack_client.api_call("auth.test")["user_id"]
         # Get all users currently in the channel first, and assign them to a team
-        channel_curr_info = slack_client.api_call("channels.info",channel=gamesCID)
+        channel_id = setChannelID(slack_client, members_list, bot_id)
         members_list = construct_userlist(slack_client.api_call("users.list"))
+        channel_curr_info = slack_client.api_call("channels.info",channel=channel_id)
 
         #Find and set the channel ID for the channel this bot is a part of
-        gamesCID = setChannelID(slack_client, members_list)
 
         for memID, username in members_list.iteritems():
             if username == "slackbot" or username == "tabletop_bot":
@@ -414,7 +471,7 @@ if __name__ == "__main__":
         #display the teams
         slack_client.api_call(
             "chat.postMessage",
-            channel=gamesCID,
+            channel=channel_id,
             text=red_team + blue_team
         )
 
