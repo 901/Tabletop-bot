@@ -199,11 +199,9 @@ def handleSTTT(user_id, command, channel):
         response = "Starting SUPER Tic-Tac-Toe! It is now Red Team's turn. This is the board:\n"
         count = 0
         #will work out rendering a better image later
-        sttt_board = [
-                        [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],[["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
+        sttt_board = [[["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],[["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
                         [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
-                        [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]
-                    ]
+                        [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]]]
         #Actual output visualization should be:
         #[0][0] [1][0] [2][0]
         #[0][1] [1][1] [2][1]
@@ -216,7 +214,6 @@ def handleSTTT(user_id, command, channel):
         #[6][0] [7][0] [8][0]
         #...
         #[6][2] [7][2] [8][2]
-        
         for x in sttt_board:
             response += str(x[0])
             response += " || "
@@ -346,6 +343,23 @@ def CheckTTTVictory(x, y):
 
     return False
 
+"""
+    Finds out which channel this bot is a part of and set the channel ID accordingly
+"""
+def setChannelID(slack_client, members_list):
+    botID = ""
+    channels = slack_client.api_call("channels.list")
+    print("setting Channel ID")
+    for k,v in members_list.iteritems():
+        if v == "tabletop_bot":
+            botID = k
+            break
+    for c in channels["channels"]:
+        if botID in c["members"]:
+            gamesCID = c["id"]
+            print("Set bot channel to: " + str(c["name"] + " with ID: " + str(c["id"])))
+            return gamesCID
+
 if __name__ == "__main__":
     count = 0
     if slack_client.rtm_connect(with_team_state=False):
@@ -356,6 +370,9 @@ if __name__ == "__main__":
         # Get all users currently in the channel first, and assign them to a team
         channel_curr_info = slack_client.api_call("channels.info",channel=gamesCID)
         members_list = construct_userlist(slack_client.api_call("users.list"))
+
+        #Find and set the channel ID for the channel this bot is a part of
+        gamesCID = setChannelID(slack_client, members_list)
 
         for memID, username in members_list.iteritems():
             if username == "slackbot" or username == "tabletop_bot":
@@ -373,14 +390,14 @@ if __name__ == "__main__":
             for member in RED_TEAM:
                 name = members_list[member]
                 red_team += name
-                red_team += ", "
-                name = ""
+                if(len(RED_TEAM) > 1 and member is not RED_TEAM[len(RED_TEAM) - 1]):
+                    red_team += ", "
         if len(BLUE_TEAM) > 0:
             for member in BLUE_TEAM:
                 name = members_list[member]
                 blue_team += name
-                blue_team += ", "
-                name = ""
+                if(len(BLUE_TEAM) > 1 and member is not BLUE_TEAM[len(BLUE_TEAM) - 1]):
+                    blue_team += ", "
         if len(red_team) > 0:
             if len(RED_TEAM) == 1:
                 red_team += " is"
@@ -394,6 +411,7 @@ if __name__ == "__main__":
                 blue_team += " are"
             blue_team += " on Blue Team!"
 
+        #display the teams
         slack_client.api_call(
             "chat.postMessage",
             channel=gamesCID,
