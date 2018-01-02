@@ -7,7 +7,6 @@ from utilities import *
 
 """
 TODO:
-- Scoreboard
 - super tic tac Toe (on hold)
 - battleship
 - pokemon??
@@ -29,6 +28,7 @@ red_wins = 0
 blue_wins = 0
 members_list = {}
 counter = 0
+addcounter = 0
 
 #Tic tac toe set
 ttt_board = [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]
@@ -59,35 +59,47 @@ def construct_userlist(userlist):
 
 """
     Parses a list of events coming from the Slack RTM API to find bot commands.
-    If a bot command is found, this function returns a tuple of command and channel.
-    If its not found, then this function returns None, None.
+    If a bot command is found, this function returns a tuple of user_id, command, channel
+    If its not found, then this function returns None.
+    Also handles users joining and leaving the channel by updating member list with new users and removing
+    team members who leave the channel.
 """
 def parse_bot_commands(slack_events):
     channel = ""
-    global counter
+    global addcounter, member_list
     for event in slack_events:
         if event["type"] == "message" and not "subtype" in event:
             blank, message = parse_direct_mention(event["text"])
             user_id = event["user"]
             channel = event["channel"]
             return user_id, message, event["channel"]
-        if event["type"] == "team_join" and not "subtype" in event:
-            if counter == 0:
+        if event["type"] == "member_joined_channel":
+            if event["user"] in RED_TEAM or event["user"] in BLUE_TEAM:
+                return None, None, None
+            response = "Welcome to "
+            channel = event["channel"]
+            if addcounter == 0:
+                response += "Red Team!"
                 RED_TEAM.append(event["user"])
-                slack_client.api_call(
-                    "chat.postMessage",
-                    channel=channel,
-                    text="Welcome to Red Team!"
-                )
-                counter = (counter + 1) % 2
-            if counter == 1:
+            if addcounter == 1:
+                response += "Blue Team!"
                 BLUE_TEAM.append(event["user"])
-                slack_client.api_call(
-                    "chat.postMessage",
-                    channel=channel,
-                    text="Welcome to Blue Team!"
-                )
-                counter = (counter + 1) % 2
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            newuser_info = slack_client.api_call("users.info", user=event["user"])
+            members_list[event["user"]] = newuser_info["user"]["name"]
+            #print("found name as: " + members_list[event["user"]])
+            addcounter = (addcounter + 1) % 2
+        if event["type"] == "member_left_channel":
+            if event["user"] in RED_TEAM:
+                #print("ID: " + event["user"] + " left red team")
+                RED_TEAM.remove(event["user"])
+            elif event["user"] in BLUE_TEAM:
+                #print("ID: " + event["user"] + " left blue team")
+                BLUE_TEAM.remove(event["user"])
     return None, None, None
 
 """
@@ -103,10 +115,13 @@ def parse_direct_mention(message_text):
     Executes bot command if the command is known, and passes it to the correct handler
     TTT = tic tac Toe
     STTT = Super tic tac toe
-    c4 = Connect 4
+    c4 = Connect 4s
     leaderboard = Show the current leaderboard standings
 """
 def handle_command(user_id, command, channel):
+    if command.startswith("help"):
+        handleHelp(user_id, command, channel)
+
     if command.startswith("ttt"):
         handleTTT(user_id, command, channel)
 
@@ -120,6 +135,26 @@ def handle_command(user_id, command, channel):
         showLeaderboard(user_id, command, channel)
 
 """
+    Command <help> enumerates all possible commands for new users
+"""
+def handleHelp(user_id, command, channel):
+    response = ""
+    response += "Hi! I'm tabletop bot - I currently support playing Tic-Tac-Toe and Connect 4 with your whole slack team on this channel!\n"
+    response += "{}, you are currently on {}.\n".format(members_list[user_id].split(" ")[0], getUserTeam(user_id))
+    response += "Preface all commands with a Direct Mention @tabletop_bot.\n"
+    response += "To get started, try these commands for the games you wan to play: \n"
+    response += "1. `ttt-help`: displays info about the tic tac toe game, and how to participate.\n"
+    response += "2. `c4-help`: displays info about connect 4, and how to join.\n"
+    response += "3. `ttt-play [1-9]`: place a tic tac toe marker for your team at spot 1-9 on the board.\n"
+    response += "4. `c4-play [1-7]`: place a marker for your team on the connect 4 board at columns 1-7"
+    slack_client.api_call(
+        "chat.postMessage",
+        channel=channel,
+        text=response
+    )
+    return None
+
+"""
     Command <leaderboard> will display the current leaderboard using Slack's message attachment API
 """
 def showLeaderboard(user_id, command, channel):
@@ -128,11 +163,11 @@ def showLeaderboard(user_id, command, channel):
     attachment = json.dumps([
     {
         "color": "#ff2b2b",
-        "text": "Red Team is at: " + str(red_wins),
+        "text": "Red Team points: " + str(red_wins),
     },
     {
         "color": "008fef",
-        "text": "Blue Team is at: " + str(blue_wins)
+        "text": "Blue Team points: " + str(blue_wins)
     }
     ])
     if red_wins > blue_wins:
@@ -265,7 +300,7 @@ def handleTTT(user_id, command, channel):
             return None
         else:
             if countTurns is 9:
-                response += "\nEnough - this board looks filled. Its a tie!\n Play another round with `@tabletop_bot ttt-play [1-9]`\n"
+                response += "\nThis board looks filled... Its a tie!\n Play another round with `@tabletop_bot ttt-play [1-9]`\n"
                 slack_client.api_call(
                     "chat.postMessage",
                     channel=channel,
@@ -498,7 +533,7 @@ def handleC4(user_id, command, channel):
             )
             return None
         if target < 1 or target > 7:
-            response = "Check your row number. It must be 1-7 which correspond to left -> right rows"
+            response = "Check your row number. It must be 1-7 which correspond to left -> right columns"
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
@@ -510,7 +545,7 @@ def handleC4(user_id, command, channel):
         if c4_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
             c4_board[target], status, y = push(c4_board[target], 1)
             if status is -1:
-                response += "Cannot place there, that row is full. Please select another row [1-7].\n"
+                response += "Cannot place there, that row is full. Please select another column [1-7].\n"
                 slack_client.api_call(
                     "chat.postMessage",
                     channel=channel,
@@ -521,7 +556,7 @@ def handleC4(user_id, command, channel):
         elif c4_turn == 1 and str(user_id) in BLUE_TEAM: #valid action -> handle it
             c4_board[target], status, y = push(c4_board[target], 2)
             if status is -1:
-                response += "Cannot place there, that row is full. Please select another row [1-7].\n"
+                response += "Cannot place there, that row is full. Please select another column [1-7].\n"
                 slack_client.api_call(
                     "chat.postMessage",
                     channel=channel,
