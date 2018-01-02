@@ -3,7 +3,7 @@ import time
 import re
 import json
 from slackclient import SlackClient
-from diaghelper import *
+from utilities import *
 
 """
 TODO:
@@ -138,7 +138,12 @@ def showLeaderboard(user_id, command, channel):
         text = "Hmm... it seems Blue Team is winning!"
     else:
         text = "You're evenly matched!"
-    slack_client.api_call("chat.postMessage", channel=channel, text=text, attachments=attachment)
+    slack_client.api_call(
+        "chat.postMessage",
+        channel=channel,
+        text=text,
+        attachments=attachment
+    )
 
 
 def handleTTT(user_id, command, channel):
@@ -242,7 +247,7 @@ def handleTTT(user_id, command, channel):
         visualizeTTT(channel)
 
         #victory check after every move, and restart the game if a victor is found
-        if CheckTTTVictory(targetx, targety):
+        if CheckTTTVictory(targetx, targety, ttt_board):
             response += "\nCongrats! {} has won this round! Play another round with `@tabletop_bot ttt-play [1-9]`\n".format(currentTurn(ttt_turn))
             response += "{} will start the next round.\n".format(currentTurn(ttt_turn))
             if ttt_turn is 0:
@@ -295,34 +300,6 @@ def visualizeTTT(channel):
         channel=channel,
         text=response
     )
-
-def CheckTTTVictory(x, y):
-    global ttt_board
-    #check if previous move caused a win on vertical line
-    if (ttt_board[0][y] == ttt_board[1][y] == ttt_board[2][y]):
-        if (ttt_board[0][y] == "-" or ttt_board[1][y] == "-" or ttt_board[2][y] == "-"):
-            return False
-        return True
-
-    #check if previous move caused a win on horizontal line
-    if ttt_board[x][0] == ttt_board[x][1] == ttt_board[x][2]:
-        if ttt_board[x][0] == "-" or ttt_board[x][1] == "-" or ttt_board[x][2] == "-":
-            return False
-        return True
-
-    #check if previous move was on the main diagonal and caused a win
-    if x == y and ttt_board[0][0] == ttt_board[1][1] == ttt_board[2][2]:
-        if x == y and ttt_board[0][0] == "-" or ttt_board[1][1] == "-" or ttt_board[2][2] == "-":
-            return False
-        return True
-
-    #check if previous move was on the secondary diagonal and caused a win
-    if x + y == 2 and ttt_board[0][2] == ttt_board[1][1] == ttt_board[2][0]:
-        if x + y == 2 and ttt_board[0][2] == "-" or ttt_board[1][1] == "-" or ttt_board[2][0] == "-":
-            return False
-        return True
-
-    return False
 
 def handleSTTT(user_id, command, channel):
     global sttt_turn
@@ -558,7 +535,7 @@ def handleC4(user_id, command, channel):
         visualizeC4(channel)
 
         #check victory here
-        if checkC4Victory():
+        if checkC4Victory(c4_board, c4_turn):
             response = "Congrats! {} has won the game!! Start another round by typing `@tabletop_bot c4-play [1-7]`. *(Winning team gets first play.)*\n".format(currentTurn(c4_turn))
             slack_client.api_call(
                 "chat.postMessage",
@@ -606,99 +583,6 @@ def visualizeC4(channel):
         text=response
     )
 
-"""
-    Special push method that adds in the element to position after the last non-zero term
-    For use with connect 4 only
-    usage c4_board[x] = push(c4_board[x], value)
-    returns updated list, status (-1 fail 1 success) and last updated index (for victory checking)
-"""
-def push(in_list, value):
-    #list is full
-    #print in_list
-    if in_list[len(in_list) - 1] is not 0:
-        return in_list, -1, -1
-
-    if in_list[0] is 0:
-        in_list[0] = value
-        return in_list, 0, 0
-
-    for x in range(0, len(in_list)-1):
-        y = x+1 #leading pointer
-        if in_list[x] is not 0 and in_list[y] is 0:
-            in_list[y] = value
-            return in_list, 0, y
-    return in_list, 0, -1
-
-#given the last input, find if theres a string of 4
-#x = column (array format) y = index of last placement
-def checkC4Victory():
-    global c4_board, c4_turn
-    if c4_turn is 0:
-        check = 1
-    else:
-        check = 2
-    count = 0
-
-    #vertical check
-    for x in c4_board:
-        for y in x:
-            if y == check:
-                count += 1
-                if count == 4:
-                    #print("Vertical Win")
-                    return True
-        count = 0
-
-    count = 0
-    #horizontal check
-    for x in range(0, 7):
-        for y in c4_board:
-            if y[x] == check:
-                count += 1
-                if count == 4:
-                    #print("Horizontal Win")
-                    return True
-            else:
-                count = 0
-
-    #Check all diagonals
-    count = 0
-    diags = get_backward_diagonals(c4_board)
-    for x in diags:
-        for y in x:
-            if y == check:
-                count += 1
-                if count == 4:
-                    #print("Backward diagonal win")
-                    return True
-            else:
-                count = 0
-        count = 0
-
-    diags = get_forward_diagonals(c4_board)
-    for x in diags:
-        for y in x:
-            if y == check:
-                count += 1
-                if count == 4:
-                    #print("Forward diagonal win")
-                    return True
-            else:
-                count = 0
-        count = 0
-
-    #it all failed :(
-    return False
-
-"""
-    //-Begin Diagonal checking helper methods for connect 4
-"""
-
-
-"""
-    //-End helper methods for connect 4
-"""
-
 def getUserTeam(user_id):
     global RED_TEAM, BLUE_TEAM
     if user_id in RED_TEAM:
@@ -707,12 +591,6 @@ def getUserTeam(user_id):
         return "Blue Team"
     else:
         return "Unknown team"
-
-def currentTurn(turn):
-    if turn == 0:
-        return "Red Team"
-    elif turn == 1:
-        return "Blue Team"
 
 """
     Finds out which channel this bot is a part of and set the channel ID accordingly

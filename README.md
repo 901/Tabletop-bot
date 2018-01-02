@@ -19,3 +19,6 @@ Add this bot as an app to any channel, and run the bot. The following commands c
 # Check it out in action!
 ![](img/ttt.png)
 ![](img/connect4.png)
+
+# Invites to tester slack
+~~If you want to be added to the tester slack to play around with this bot - just create an issue asking to be added with your email.~~
