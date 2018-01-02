@@ -44,17 +44,19 @@ c4_turn = 0
 c4_total_turns = 0
 
 """
-    Creates a userID -> Real Name mapping of all users on the team
+    Creates a userID -> Real Name mapping of all users in the channel
     @param userlist is a JSON returned by users.list api call
+    @param channel_user_list is a list of members in a specific channel
 """
-def construct_userlist(userlist):
+def construct_userlist(userlist, channel_user_list):
     global bot_id
     member_dict = {}
     for member_info in userlist["members"]:
         if member_info["real_name"] is "tabletop_bot":
             bot_id = member_info["id"]
-        name = member_info["real_name"].encode("ascii", "ignore")
-        member_dict[member_info["id"]] = name
+        if member_info["id"] in channel_user_list:
+            name = member_info["real_name"].encode("ascii", "ignore")
+            member_dict[member_info["id"]] = name
     return member_dict
 
 """
@@ -145,8 +147,8 @@ def handleHelp(user_id, command, channel):
     response += "To get started, try these commands for the games you wan to play: \n"
     response += "1. `ttt-help`: displays info about the tic tac toe game, and how to participate.\n"
     response += "2. `c4-help`: displays info about connect 4, and how to join.\n"
-    response += "3. `ttt-play [1-9]`: place a tic tac toe marker for your team at spot 1-9 on the board.\n"
-    response += "4. `c4-play [1-7]`: place a marker for your team on the connect 4 board at columns 1-7"
+    response += "3. `ttt-play [1-9]`: place a tic tac toe marker for your team at spot 1-9 on the board. Example: `ttt-play 2`.\n"
+    response += "4. `c4-play [1-7]`: place a marker for your team on the connect 4 board at columns 1-7. Example: `c4-play 7`."
     slack_client.api_call(
         "chat.postMessage",
         channel=channel,
@@ -203,7 +205,6 @@ def handleTTT(user_id, command, channel):
         countTurns = 0
         response = "Starting Tic-Tac-Toe! It is now {}'s turn. This is the board:\n".format(currentTurn(ttt_turn))
         visualizeTTT(channel)
-        #response = "Sure...write some more code then I can do that!"
         response += "To participate type: `@tabletop-bot ttt-play [1-9]` Must be 1-9 from top left -> bottom right."
 
     """
@@ -215,10 +216,19 @@ def handleTTT(user_id, command, channel):
         response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(ttt_turn))
 
     """
-        Command <ttt-play [1-9]`: takes in a user input target 1-9 and places their respective mark on the board
+        Command <ttt-play [1-9]>: takes in a user input target 1-9 and places their respective mark on the board
     """
     if command.startswith(ttt_play):
-        target = command.split(" ")[1]
+        target = command.split(" ")
+        if(len(target) < 2): #make sure the user has entered the command correctly
+            response = "Check your syntax: try `@tabletop_bot c4-play [1-7]`"
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+        target = target[1]
         try:
             target = int(target)
         except TypeError:
@@ -543,7 +553,7 @@ def handleC4(user_id, command, channel):
 
         target = target - 1 #get the array index format of their target
         if c4_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
-            c4_board[target], status, y = push(c4_board[target], 1)
+            c4_board[target], status = push(c4_board[target], 1)
             if status is -1:
                 response += "Cannot place there, that row is full. Please select another column [1-7].\n"
                 slack_client.api_call(
@@ -554,7 +564,7 @@ def handleC4(user_id, command, channel):
                 return None
 
         elif c4_turn == 1 and str(user_id) in BLUE_TEAM: #valid action -> handle it
-            c4_board[target], status, y = push(c4_board[target], 2)
+            c4_board[target], status = push(c4_board[target], 2)
             if status is -1:
                 response += "Cannot place there, that row is full. Please select another column [1-7].\n"
                 slack_client.api_call(
@@ -648,7 +658,6 @@ def setChannelID(members_list, bot_id):
     print("setting Channel ID")
     for c in channels["channels"]:
         if bot_id in c["members"]:
-            gamesCID = c["id"]
             print("Set bot channel to: " + str(c["name"] + " with ID: " + str(c["id"])))
             return c["id"]
 
@@ -661,8 +670,9 @@ if __name__ == "__main__":
         bot_id = slack_client.api_call("auth.test")["user_id"]
         # Get all users currently in the channel first, and assign them to a team
         channel_id = setChannelID(members_list, bot_id)
-        members_list = construct_userlist(slack_client.api_call("users.list"))
         channel_curr_info = slack_client.api_call("channels.info",channel=channel_id)
+        members_list = construct_userlist(slack_client.api_call("users.list"), channel_curr_info["channel"]["members"])
+
 
         """
             Place all users (except bots) on either red team or blue team, alternating between each one.
