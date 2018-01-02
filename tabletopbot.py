@@ -43,7 +43,10 @@ c4_board = [[0 for x in range(0,7)] for y in range(0,7)]
 c4_turn = 0
 c4_total_turns = 0
 
-# userlist is a JSON returned by users.list api call
+"""
+    Creates a userID -> Real Name mapping of all users on the team
+    @param userlist is a JSON returned by users.list api call
+"""
 def construct_userlist(userlist):
     global bot_id
     member_dict = {}
@@ -54,12 +57,12 @@ def construct_userlist(userlist):
         member_dict[member_info["id"]] = name
     return member_dict
 
+"""
+    Parses a list of events coming from the Slack RTM API to find bot commands.
+    If a bot command is found, this function returns a tuple of command and channel.
+    If its not found, then this function returns None, None.
+"""
 def parse_bot_commands(slack_events):
-    """
-        Parses a list of events coming from the Slack RTM API to find bot commands.
-        If a bot command is found, this function returns a tuple of command and channel.
-        If its not found, then this function returns None, None.
-    """
     channel = ""
     global counter
     for event in slack_events:
@@ -87,23 +90,23 @@ def parse_bot_commands(slack_events):
                 counter = (counter + 1) % 2
     return None, None, None
 
+"""
+    Finds a direct mention (a mention that is at the beginning) in message text
+    and returns the user ID which was mentioned. If there is no direct mention, returns None
+"""
 def parse_direct_mention(message_text):
-    """
-        Finds a direct mention (a mention that is at the beginning) in message text
-        and returns the user ID which was mentioned. If there is no direct mention, returns None
-    """
     matches = re.search(MENTION_REGEX, message_text)
     # the first group contains the username, the second group contains the remaining message
     return (matches.group(1), matches.group(2).strip()) if matches else (None, None)
 
-#this method has to handle gamestate + turn order --> respond accordingly
+"""
+    Executes bot command if the command is known, and passes it to the correct handler
+    TTT = tic tac Toe
+    STTT = Super tic tac toe
+    c4 = Connect 4
+    leaderboard = Show the current leaderboard standings
+"""
 def handle_command(user_id, command, channel):
-    """
-        Executes bot command if the command is known, and passes it to the correct handler
-        TTT = tic tac Toe
-        STTT = Super tic tac toe
-        C4 = Connect 4
-    """
     if command.startswith("ttt"):
         handleTTT(user_id, command, channel)
 
@@ -117,7 +120,7 @@ def handle_command(user_id, command, channel):
         showLeaderboard(user_id, command, channel)
 
 """
-    Command leaderboard will display the current leaderboard using Slack's message attachment API
+    Command <leaderboard> will display the current leaderboard using Slack's message attachment API
 """
 def showLeaderboard(user_id, command, channel):
     global red_wins, blue_wins
@@ -243,7 +246,6 @@ def handleTTT(user_id, command, channel):
         countTurns += 1 #check the overall number of turns in the game, if too many, call it.
 
         #print the current board state
-        #response += "\n"
         visualizeTTT(channel)
 
         #victory check after every move, and restart the game if a victor is found
@@ -272,7 +274,7 @@ def handleTTT(user_id, command, channel):
                 ttt_board = [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]] #reset the board
                 countTurns = 0
                 return None
-        #response = "Sure...write some more code then I can do that!"
+
         response += "To participate type: `@tabletop-bot ttt-play [1-9]` where 1-9 correspond to top-left to bottom-right."
         ttt_turn = (ttt_turn + 1) % 2
 
@@ -283,6 +285,9 @@ def handleTTT(user_id, command, channel):
         text=response
     )
 
+"""
+    Method to display the current tic tac toe (TTT) board gamestate with fancy slack emojis
+"""
 def visualizeTTT(channel):
     global ttt_board
     response = ""
@@ -423,6 +428,9 @@ def handleSTTT(user_id, command, channel):
         text=response
     )
 
+"""
+    Maintains and updates the on-going connect 4 game in the slack through commands
+"""
 def handleC4(user_id, command, channel):
     global c4_board, c4_turn, c4_total_turns, red_wins, blue_wins
     c4_start = "c4-start"
@@ -563,7 +571,9 @@ def handleC4(user_id, command, channel):
 
         c4_turn = (c4_turn + 1) % 2
 
-#Prints out a visual representation of the Connect 4 Board state
+"""
+    Prints out a visual representation of the Connect 4 Board state using fancy slack emojis
+"""
 def visualizeC4(channel):
     global c4_board
     response = ""
@@ -583,6 +593,9 @@ def visualizeC4(channel):
         text=response
     )
 
+"""
+    Returns which team the user is on in string format (for help purposes)
+"""
 def getUserTeam(user_id):
     global RED_TEAM, BLUE_TEAM
     if user_id in RED_TEAM:
@@ -607,7 +620,7 @@ def setChannelID(members_list, bot_id):
 if __name__ == "__main__":
     count = 0
     if slack_client.rtm_connect(with_team_state=False):
-        print("Tabletop Bot connected and running! + bot_id: ")
+        print("Tabletop Bot connected and running!")
 
         # Read bot's user ID by calling Web API method `auth.test`
         bot_id = slack_client.api_call("auth.test")["user_id"]
@@ -616,8 +629,10 @@ if __name__ == "__main__":
         members_list = construct_userlist(slack_client.api_call("users.list"))
         channel_curr_info = slack_client.api_call("channels.info",channel=channel_id)
 
-        #Find and set the channel ID for the channel this bot is a part of
-
+        """
+            Place all users (except bots) on either red team or blue team, alternating between each one.
+            Also, after placing users on teams, create a message letting them know who's on what team.
+        """
         for memID, username in members_list.iteritems():
             if username == "slackbot" or username == "tabletop_bot":
                 continue
@@ -629,7 +644,6 @@ if __name__ == "__main__":
 
         red_team = ""
         blue_team = ""
-
         if len(RED_TEAM) > 0:
             for member in RED_TEAM:
                 name = members_list[member]
@@ -662,6 +676,7 @@ if __name__ == "__main__":
             text=red_team + blue_team
         )
 
+        #keep reading all RTM events
         while True:
             user_id, command, channel = parse_bot_commands(slack_client.rtm_read())
             if command:

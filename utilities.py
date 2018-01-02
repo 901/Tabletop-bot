@@ -1,3 +1,6 @@
+"""
+    //-- Begin Connect4 Diagonal checking helper functions
+"""
 def get_rows(grid):
     return [[c for c in r] for r in grid]
 
@@ -14,6 +17,14 @@ def get_forward_diagonals(grid):
     grid = [b[:i] + r + b[i:] for i, r in enumerate(get_rows(grid))]
     return [[c for c in r if not c is None] for r in get_cols(grid)]
 
+"""
+    //-- End Connect4 Diagonal checking helper functions
+"""
+
+"""
+    Given the current turn and board, checks if someone has won the on-going
+    connect 4 game (7x7 board default)
+"""
 def checkC4Victory(c4_board, c4_turn):
     if c4_turn is 0:
         check = 1
@@ -72,6 +83,10 @@ def checkC4Victory(c4_board, c4_turn):
     #it all failed :(
     return False
 
+"""
+    Given the last placement and board, checks if someone has won the on-going
+    tic tac toe game (3x3 board default)
+"""
 def CheckTTTVictory(x, y, ttt_board):
     #check if previous move caused a win on vertical line
     if (ttt_board[0][y] == ttt_board[1][y] == ttt_board[2][y]):
@@ -122,7 +137,9 @@ def push(in_list, value):
             return in_list, 0, y
     return in_list, 0, -1
 
-
+"""
+    Simply returns the string version of whose turn it is as opposed to adding if/else everywhere
+"""
 def currentTurn(turn):
     if turn == 0:
         return "Red Team"
