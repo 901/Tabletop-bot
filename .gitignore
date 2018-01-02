@@ -1,4 +1,5 @@
 tbbot/
 *.sh
-.DS_/
+.DS_Store
+.DS_Store?
 *.pyc
