@@ -75,32 +75,41 @@ def parse_bot_commands(slack_events):
             user_id = event["user"]
             channel = event["channel"]
             return user_id, message, event["channel"]
+        #if a user joins, add them to a team based on team size (or alternate if same)
         if event["type"] == "member_joined_channel":
             if event["user"] in RED_TEAM or event["user"] in BLUE_TEAM:
                 return None, None, None
             response = "Welcome to "
             channel = event["channel"]
-            if addcounter == 0:
-                response += "Red Team!"
+            #team balancing logic
+            if len(RED_TEAM) < len(BLUE_TEAM):
+                response += "Red Team, "
                 RED_TEAM.append(event["user"])
-            if addcounter == 1:
-                response += "Blue Team!"
+            elif len(RED_TEAM) > len(BLUE_TEAM):
+                response += "Blue Team, "
                 BLUE_TEAM.append(event["user"])
+            else:
+                if addcounter == 0:
+                    response += "Red Team, "
+                    RED_TEAM.append(event["user"])
+                if addcounter == 1:
+                    response += "Blue Team, "
+                    BLUE_TEAM.append(event["user"])
+                addcounter = (addcounter + 1) % 2
+            newuser_info = slack_client.api_call("users.info", user=event["user"])
+            members_list[event["user"]] = newuser_info["user"]["name"]
+            response += str(members_list[event["user"]]) + "!"
+            #print("found name as: " + members_list[event["user"]])
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
                 text=response
             )
-            newuser_info = slack_client.api_call("users.info", user=event["user"])
-            members_list[event["user"]] = newuser_info["user"]["name"]
-            #print("found name as: " + members_list[event["user"]])
-            addcounter = (addcounter + 1) % 2
+        #if a user leaves the channel, remove them from the team
         if event["type"] == "member_left_channel":
             if event["user"] in RED_TEAM:
-                #print("ID: " + event["user"] + " left red team")
                 RED_TEAM.remove(event["user"])
             elif event["user"] in BLUE_TEAM:
-                #print("ID: " + event["user"] + " left blue team")
                 BLUE_TEAM.remove(event["user"])
     return None, None, None
 
