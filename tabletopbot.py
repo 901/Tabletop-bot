@@ -4,9 +4,10 @@ import re
 from slackclient import SlackClient
 
 """
-TODO: add other games, make sure ttt works
-- super tic tac Toe
+TODO: add other games
+- super tic tac Toe (on hold)
 - connect 4
+- battleship
 - pokemon??
 """
 # instantiate Slack client
@@ -32,6 +33,11 @@ countTurns = 0
 
 #Super Tic tac toe set
 sttt_turn = 0
+
+#Connect 4 set
+c4_board = [[0 for x in range(0,7)] for y in range(0,7)]
+c4_turn = 0
+c4_total_turns = 0
 
 # userlist is a JSON returned by users.list api call
 def construct_userlist(userlist):
@@ -90,12 +96,18 @@ def parse_direct_mention(message_text):
 def handle_command(user_id, command, channel):
     """
         Executes bot command if the command is known, and passes it to the correct handler
+        TTT = tic tac Toe
+        STTT = Super tic tac toe
+        C4 = Connect 4
     """
     if command.startswith("ttt"):
         handleTTT(user_id, command, channel)
 
     if command.startswith("sttt"):
         handleSTTT(user_id, command, channel)
+
+    if command.startswith("c4"):
+        handleC4(user_id, command, channel)
 
 def handleTTT(user_id, command, channel):
     ttt_start = "ttt-start"
@@ -219,7 +231,6 @@ def handleTTT(user_id, command, channel):
             return None
         else:
             if countTurns is 9:
-                print("Entered this clause")
                 response += "\nEnough - this board looks filled. Its a tie!\n Play another round with <@tabletop_bot ttt-play [1-9]>\n"
                 slack_client.api_call(
                     "chat.postMessage",
@@ -239,6 +250,34 @@ def handleTTT(user_id, command, channel):
         channel=channel,
         text=response
     )
+
+def CheckTTTVictory(x, y):
+    global ttt_board
+    #check if previous move caused a win on vertical line
+    if (ttt_board[0][y] == ttt_board[1][y] == ttt_board[2][y]):
+        if (ttt_board[0][y] == "-" or ttt_board[1][y] == "-" or ttt_board[2][y] == "-"):
+            return False
+        return True
+
+    #check if previous move caused a win on horizontal line
+    if ttt_board[x][0] == ttt_board[x][1] == ttt_board[x][2]:
+        if ttt_board[x][0] == "-" or ttt_board[x][1] == "-" or ttt_board[x][2] == "-":
+            return False
+        return True
+
+    #check if previous move was on the main diagonal and caused a win
+    if x == y and ttt_board[0][0] == ttt_board[1][1] == ttt_board[2][2]:
+        if x == y and ttt_board[0][0] == "-" or ttt_board[1][1] == "-" or ttt_board[2][2] == "-":
+            return False
+        return True
+
+    #check if previous move was on the secondary diagonal and caused a win
+    if x + y == 2 and ttt_board[0][2] == ttt_board[1][1] == ttt_board[2][0]:
+        if x + y == 2 and ttt_board[0][2] == "-" or ttt_board[1][1] == "-" or ttt_board[2][0] == "-":
+            return False
+        return True
+
+    return False
 
 def handleSTTT(user_id, command, channel):
     global sttt_turn
@@ -362,6 +401,269 @@ def handleSTTT(user_id, command, channel):
         text=response
     )
 
+def handleC4(user_id, command, channel):
+    global c4_board, c4_turn, c4_total_turns
+    c4_start = "c4-start"
+    c4_play = "c4-play"
+    c4_help = "c4-help"
+
+    response = ""
+
+    """
+        Command <c4-start>: (re)starts the connect 4 game, initiates turn
+    """
+    if command.startswith(c4_start):
+        c4_board = [[0 for x in range(0,7)] for y in range(0,7)]
+        c4_turn = 0
+        response = "Starting Connect 4! It is now {}'s turn. This is the board:\n".format(currentTurn(c4_turn))
+        #response = "Sure...write some more code then I can do that!"
+        response += "To participate type: <@tabletop-bot c4-play [1-7]> Must be 1-7 from left -> right columns."
+        slack_client.api_call(
+            "chat.postMessage",
+            channel=channel,
+            text=response
+        )
+        visualizeC4(channel)
+        return None
+
+    """
+        Command <c4-help>: prints out a helper message so the user can figure out their team and how to play
+    """
+    if command.startswith(c4_help):
+        response += "To participate type: <@tabletop-bot c4-play [1-7]> where 1-7 correspond to left -> right columns on the board."
+        response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(ttt_turn))
+        slack_client.api_call(
+            "chat.postMessage",
+            channel=channel,
+            text=response
+        )
+        visualizeC4(channel)
+        return None
+
+    """
+        Command <c4-play [1-7]: Initiates/continues a connect 4 game session between the teams
+        Input [1-7] corresponds to the respective row on a 7x7 standard Connect 4 Board
+    """
+    if command.startswith(c4_play):
+        target = command.split(" ")[1]
+        """ Error checking on input """
+        try:
+            target = int(target)
+        except TypeError:
+            response = "Check your syntax: try <@tabletop_bot c4-play [1-7]>"
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+        if target < 1 or target > 7:
+            response = "Check your row number. It must be 1-7 which correspond to left -> right rows"
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+
+        target = target - 1 #get the array index format of their target
+        if c4_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
+            c4_board[target], status, y = push(c4_board[target], 1)
+            if status is -1:
+                response += "Cannot place there, that row is full. Please select another row [1-7].\n"
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+                return None
+
+        elif c4_turn == 1 and str(user_id) in BLUE_TEAM: #valid action -> handle it
+            c4_board[target], status, y = push(c4_board[target], 2)
+            if status is -1:
+                response += "Cannot place there, that row is full. Please select another row [1-7].\n"
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+                return None
+        else: #oops invalid/out of turn action
+            response = "It is not your team's turn {}, it is currently {}'s turn.\n".format(members_list[user_id].split(" ")[0], currentTurn(c4_turn))
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+
+        #count total number of turns, for tie/unplayable sitations
+        c4_total_turns += 1
+        #print the current gamestate
+        visualizeC4(channel)
+
+        #check victory here
+        if checkC4Victory():
+            response = "Congrats! {} has won the game!! Start another round by typing <@tabletop_bot c4-play [1-7]>. *(Winning team gets first play.)*\n".format(currentTurn(c4_turn))
+            c4_board = [[0 for x in range(0,7)] for y in range(0,7)]
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+        else:
+            if c4_total_turns is 49:
+                response = "I...think we've played enough. This board looks like a tie to me.\n Play another round with <@tabletop_bot c4-play [1-7]>! *(Red Team starts)*\n"
+                c4_turn = 0
+                c4_total_turns = 0
+                c4_board = [[0 for x in range(0,7)] for y in range(0,7)]
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+                return None
+
+        c4_turn = (c4_turn + 1) % 2
+
+#Prints out a visual representation of the Connect 4 Board state
+def visualizeC4(channel):
+    global c4_board
+    response = ""
+    for x in range(6, -1, -1):
+        for y in range(0, 7):
+            if c4_board[y][x] is 0:
+                response += ":white_circle: "
+            elif c4_board[y][x] is 1:
+                response += ":red_circle: "
+            elif c4_board[y][x] is 2:
+                response += ":large_blue_circle: "
+        response += "\n"
+    response += ":one: :two: :three: :four: :five: :six: :seven:\n"
+    slack_client.api_call(
+        "chat.postMessage",
+        channel=channel,
+        text=response
+    )
+
+"""
+    Special push method that adds in the element to position after the last non-zero term
+    For use with connect 4 only
+    usage c4_board[x] = push(c4_board[x], value)
+    returns updated list, status (-1 fail 1 success) and last updated index (for victory checking)
+"""
+def push(in_list, value):
+    #list is full
+    #print in_list
+    if in_list[len(in_list) - 1] is not 0:
+        return in_list, -1, -1
+
+    if in_list[0] is 0:
+        in_list[0] = value
+        return in_list, 0, 0
+
+    for x in range(0, len(in_list)-1):
+        y = x+1 #leading pointer
+        if in_list[x] is not 0 and in_list[y] is 0:
+            in_list[y] = value
+            return in_list, 0, y
+    return in_list, 0, -1
+
+#given the last input, find if theres a string of 4
+#x = column (array format) y = index of last placement
+def checkC4Victory():
+    global c4_board, c4_turn
+    if c4_turn is 0:
+        check = 1
+    else:
+        check = 2
+    count = 0
+
+    #vertical check
+    for x in c4_board:
+        for y in x:
+            if y == check:
+                count += 1
+                if count == 4:
+                    #print("Vertical Win")
+                    return True
+        count = 0
+
+    count = 0
+    #horizontal check
+    for x in range(0, 7):
+        for y in c4_board:
+            if y[x] == check:
+                count += 1
+                if count == 4:
+                    #print("Horizontal Win")
+                    return True
+            else:
+                count = 0
+
+    #Check all diagonals
+    count = 0
+    diags = get_backward_diagonals(c4_board)
+    for x in diags:
+        for y in x:
+            if y == check:
+                count += 1
+                if count == 4:
+                    #print("Backward diagonal win")
+                    return True
+            else:
+                count = 0
+        count = 0
+
+    diags = get_forward_diagonals(c4_board)
+    for x in diags:
+        for y in x:
+            if y == check:
+                count += 1
+                if count == 4:
+                    #print("Forward diagonal win")
+                    return True
+            else:
+                count = 0
+        count = 0
+
+    #it all failed :(
+    return False
+
+"""
+    //-Begin Diagonal checking helper methods for connect 4
+"""
+def get_rows(grid):
+    return [[c for c in r] for r in grid]
+
+def get_cols(grid):
+    return zip(*grid)
+
+def get_backward_diagonals(grid):
+    b = [None] * (len(grid) - 1)
+    grid = [b[i:] + r + b[:i] for i, r in enumerate(get_rows(grid))]
+    return [[c for c in r if not c is None] for r in get_cols(grid)]
+
+def get_forward_diagonals(grid):
+    b = [None] * (len(grid) - 1)
+    grid = [b[:i] + r + b[i:] for i, r in enumerate(get_rows(grid))]
+    return [[c for c in r if not c is None] for r in get_cols(grid)]
+
+"""
+    //-End helper methods for connect 4
+"""
+
+#testing only!!!!
+def rigC4board(target_row):
+    return [[1,1,0,0,0,0,0],
+    [1,1,0,0,0,0,0],
+    [1,1,1,0,0,0,0],
+    [2,2,1,0,0,0,0],
+    [0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0]]
+
 def getUserTeam(user_id):
     global RED_TEAM, BLUE_TEAM
     if user_id in RED_TEAM:
@@ -377,38 +679,10 @@ def currentTurn(turn):
     elif turn == 1:
         return "Blue Team"
 
-def CheckTTTVictory(x, y):
-    global ttt_board
-    #check if previous move caused a win on vertical line
-    if (ttt_board[0][y] == ttt_board[1][y] == ttt_board[2][y]):
-        if (ttt_board[0][y] == "-" or ttt_board[1][y] == "-" or ttt_board[2][y] == "-"):
-            return False
-        return True
-
-    #check if previous move caused a win on horizontal line
-    if ttt_board[x][0] == ttt_board[x][1] == ttt_board[x][2]:
-        if ttt_board[x][0] == "-" or ttt_board[x][1] == "-" or ttt_board[x][2] == "-":
-            return False
-        return True
-
-    #check if previous move was on the main diagonal and caused a win
-    if x == y and ttt_board[0][0] == ttt_board[1][1] == ttt_board[2][2]:
-        if x == y and ttt_board[0][0] == "-" or ttt_board[1][1] == "-" or ttt_board[2][2] == "-":
-            return False
-        return True
-
-    #check if previous move was on the secondary diagonal and caused a win
-    if x + y == 2 and ttt_board[0][2] == ttt_board[1][1] == ttt_board[2][0]:
-        if x + y == 2 and ttt_board[0][2] == "-" or ttt_board[1][1] == "-" or ttt_board[2][0] == "-":
-            return False
-        return True
-
-    return False
-
 """
     Finds out which channel this bot is a part of and set the channel ID accordingly
 """
-def setChannelID(slack_client, members_list, bot_id):
+def setChannelID(members_list, bot_id):
     channels = slack_client.api_call("channels.list")
     print("setting Channel ID")
     for c in channels["channels"]:
@@ -425,7 +699,7 @@ if __name__ == "__main__":
         # Read bot's user ID by calling Web API method `auth.test`
         bot_id = slack_client.api_call("auth.test")["user_id"]
         # Get all users currently in the channel first, and assign them to a team
-        channel_id = setChannelID(slack_client, members_list, bot_id)
+        channel_id = setChannelID(members_list, bot_id)
         members_list = construct_userlist(slack_client.api_call("users.list"))
         channel_curr_info = slack_client.api_call("channels.info",channel=channel_id)
 
