@@ -17,5 +17,5 @@ Add this bot as an app to any channel, and run the bot. The following commands c
 - \@tabletop_bot leaderboard will show the current leaderboard
 
 # Check it out in action!
-![](ttt.png)
-![](connect4.png)
+![](img/ttt.png)
+![](img/connect4.png)
