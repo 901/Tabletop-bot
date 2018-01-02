@@ -1,3 +1,4 @@
 tbbot/
 *.sh
 .DS_/
+*.pyc
