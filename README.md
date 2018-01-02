@@ -15,3 +15,7 @@ Add this bot as an app to any channel, and run the bot. The following commands c
 - \@tabletop_bot ttt-[help/start/play] [1-9] to initiate a tic tac toe session in the channel
 - \@tabletop_bot c4-[help/start/play] [1-7] to initiate a connect 4 session in the channel
 - \@tabletop_bot leaderboard will show the current leaderboard
+
+# Check it out in action!
+![](ttt.png)
+![](connect4.png)

@@ -159,10 +159,7 @@ def handleTTT(user_id, command, channel):
         ttt_turn = 0
         countTurns = 0
         response = "Starting Tic-Tac-Toe! It is now {}'s turn. This is the board:\n".format(currentTurn(ttt_turn))
-        for x in ttt_board:
-            response += str(x)
-            response += " "
-            response += "\n"
+        visualizeTTT(channel)
         #response = "Sure...write some more code then I can do that!"
         response += "To participate type: `@tabletop-bot ttt-play [1-9]` Must be 1-9 from top left -> bottom right."
 
@@ -222,10 +219,7 @@ def handleTTT(user_id, command, channel):
             else:
                 response = "Cannot place there, there already exists a mark."
                 response += "\n"
-                for x in ttt_board:
-                    response += str(x)
-                    response += " "
-                    response += "\n"
+                visualizeTTT(channel)
                 slack_client.api_call(
                     "chat.postMessage",
                     channel=channel,
@@ -244,11 +238,8 @@ def handleTTT(user_id, command, channel):
         countTurns += 1 #check the overall number of turns in the game, if too many, call it.
 
         #print the current board state
-        response += "\n"
-        for x in ttt_board:
-            response += str(x)
-            response += " "
-            response += "\n"
+        #response += "\n"
+        visualizeTTT(channel)
 
         #victory check after every move, and restart the game if a victor is found
         if CheckTTTVictory(targetx, targety):
@@ -279,8 +270,26 @@ def handleTTT(user_id, command, channel):
         #response = "Sure...write some more code then I can do that!"
         response += "To participate type: `@tabletop-bot ttt-play [1-9]` where 1-9 correspond to top-left to bottom-right."
         ttt_turn = (ttt_turn + 1) % 2
-    
+
     # Sends the response back to the channel
+    slack_client.api_call(
+        "chat.postMessage",
+        channel=channel,
+        text=response
+    )
+
+def visualizeTTT(channel):
+    global ttt_board
+    response = ""
+    for x in ttt_board:
+        for y in x:
+            if y == "-":
+                response += " :slack: "
+            elif y == "X":
+                response += " :x: "
+            elif y == "O":
+                response += " :black_circle: "
+        response += "\n"
     slack_client.api_call(
         "chat.postMessage",
         channel=channel,
