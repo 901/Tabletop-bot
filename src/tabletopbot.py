@@ -8,7 +8,6 @@ from utilities import *
 """
 TODO:
 - super tic tac Toe (on hold)
-- battleship
 - pokemon??
 """
 # instantiate Slack client
@@ -16,8 +15,7 @@ slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 bot_id = None
 
 # constants
-RTM_READ_DELAY = 0.1 # 1 second delay between reading from RTM
-EXAMPLE_COMMAND = "do"
+RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
 MENTION_REGEX = "^<@(|[WU].+)>(.*)"
 
 #teams
@@ -135,12 +133,14 @@ def parse_direct_mention(message_text):
     ttt = tic tac Toe
     sttt = Super tic tac toe
     c4 = Connect 4
+    battleship/fire = play battleship
     leaderboard = Show the current leaderboard standings
     :param user_id: user ID that was read from the slack real-time messaging event
     :param command: user's command (after being stripped of direct mention)
     :param channel: current operating channel (by ID), parsed from RTM Event
 """
 def handle_command(user_id, command, channel):
+
     if command.startswith("help"):
         handleHelp(user_id, command, channel)
 
@@ -153,7 +153,7 @@ def handle_command(user_id, command, channel):
     if command.startswith("c4"):
         handleC4(user_id, command, channel)
 
-    if command.startswith("battleship"):
+    if command.startswith("battleship") or command.startswith("fire"):
         handleBattleship(user_id, command, channel)
 
     if command.startswith("leaderboard"):
@@ -674,7 +674,7 @@ def handleBattleship(user_id, command, channel):
     response = ""
 
     """
-        Command <bs-start>: (re)starts the battleship game, initiates turn
+        Command <battleship-start>: (re)starts the battleship game, initiates turn
         Will also set up a new board with a new ship layout and reset the hit detection boards
     """
     if command.startswith(bs_start):
@@ -683,7 +683,8 @@ def handleBattleship(user_id, command, channel):
         blue_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
         bship_turn = 0
         response = "Starting Battleship! It is now {}'s turn. This is the board:\n".format(currentTurn(bship_turn))
-        response += "The ships have been placed! *You will not see the ships, only where you've hit*.\n To shoot, type: `@tabletop-bot battleship [A-J] [1-10]` A-J are rows, 1-10 correspond to the columns of the board."
+        response += "The ships have been placed! *You will not see the ships, only where you've hit*.\n"
+        response += "To shoot, type: `@tabletop-bot battleship [A-J] [1-10]` A-J are rows, 1-10 correspond to the columns of the board.\n"
         slack_client.api_call(
             "chat.postMessage",
             channel=channel,
@@ -709,7 +710,12 @@ def handleBattleship(user_id, command, channel):
             visualizeBS(blue_hit_detection)
         return None
 
+    """
+        Command <fire>: main battleship playing command, combined with coordinates executes the desired action of that team.
+        Will print the hit-detection boards publicly because no information is leaked by doing this.
+    """
     if command.startswith(bs_play):
+        # Switch-style lambda functions
         placement = lambda a: {'A':0, 'B':1, 'C':2, 'D':3, 'E':4, 'F':5, 'G':6, 'H':7, 'I':8, 'J':9}[a]
         ship_name = lambda b: {1: 'Carrier', 2:'Battleship', 3:'Submarine', 4:'Destroyer', 5:'Cruiser'}[b]
         target = command.split(" ")
@@ -749,12 +755,13 @@ def handleBattleship(user_id, command, channel):
                 text=response
             )
             return None
+        # Execute the desired action of the turn, if its valid
         if bship_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
             if blue_bship_board[targetx][targety] is not 0:
                 response += "Its a hit on the enemy's "
                 response += str(ship_name(blue_bship_board[targetx][targety]))
                 response += "!\n"
-                red_hit_detection[targetx][targety] = blue_bship_board[targetx][targety]
+                red_hit_detection[targetx][targety] = blue_bship_board[targetx][targety] #makes comparing easier later
                 slack_client.api_call(
                     "chat.postMessage",
                     channel=channel,
@@ -762,6 +769,8 @@ def handleBattleship(user_id, command, channel):
                 )
             else:
                 response += "Its a miss!\n"
+                # slight future optimization: also change the corresponding battleship board for easy comparing
+                # no replacing needed?
                 red_hit_detection[targetx][targety] = 'X'
                 slack_client.api_call(
                     "chat.postMessage",
@@ -789,7 +798,7 @@ def handleBattleship(user_id, command, channel):
                     text=response
                 )
             visualizeBS(blue_hit_detection)
-        else: #oops invalid/out of turn action
+        else: # oops invalid/out of turn action
             response = "It is not your team's turn {}, it is currently {}'s turn.\n".format(members_list[user_id].split(" ")[0], currentTurn(c4_turn))
             slack_client.api_call(
                 "chat.postMessage",
@@ -798,6 +807,8 @@ def handleBattleship(user_id, command, channel):
             )
             return None
 
+        # Victory check: do the hit detection boards and the opposing team's boards match? If so, win
+        # On win - place new ships on the boards, reset the hit detection boards, increment wins
         if bship_turn is 0:
             if checkBSVictory(red_hit_detection, blue_bship_board):
                 response = "Congrats! Red Team has won the game!!\n"
@@ -865,6 +876,7 @@ def visualizeBS(board):
     )
 """
     Returns which team the user is on in string format (for help purposes)
+    :param user_id: a user's string ID assigned by Slack
 """
 def getUserTeam(user_id):
     global RED_TEAM, BLUE_TEAM
@@ -898,7 +910,6 @@ if __name__ == "__main__":
         channel_id = setChannelID(bot_id)
         channel_curr_info = slack_client.api_call("channels.info",channel=channel_id)
         members_list = construct_userlist(slack_client.api_call("users.list"), channel_curr_info["channel"]["members"])
-
 
         """
             Place all users (except bots) on either red team or blue team, alternating between each one.
