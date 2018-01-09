@@ -46,8 +46,6 @@ c4_total_turns = 0
 red_bship_board, blue_bship_board = setupBattleship([[0 for x in range(0,10)] for y in range(0,10)], [[0 for x in range(0,10)] for y in range(0,10)])
 red_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
 blue_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
-red_ships_left = 5
-blue_ships_left = 5
 bship_turn = 0
 
 """
@@ -686,8 +684,8 @@ def handleBattleship(user_id, command, channel):
         blue_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
         bship_turn = 0
         response = "Starting Battleship! It is now {}'s turn. This is the board:\n".format(currentTurn(bship_turn))
-        response += "The ships have been placed! *You will not see the ships, only where you've hit*.\n"
-        response += "To shoot, type: `@tabletop-bot battleship [A-J] [1-10]` A-J are rows, 1-10 correspond to the columns of the board.\n"
+        response += "The ships have been placed! *You will not see your ships, only where you've fired*.\n"
+        response += "To shoot, type: `@tabletop-bot battleship [A-J] [1-10]` where A-J are rows, 1-10 correspond to the columns of the board.\n"
         slack_client.api_call(
             "chat.postMessage",
             channel=channel,
@@ -860,13 +858,18 @@ def handleBattleship(user_id, command, channel):
                 return None
         bship_turn = (bship_turn + 1) % 2
 
-"""Given a hit detection board, visualize it"""
+"""
+    Given a hit detection board for some team, visualize it. In this case, we use ? for unknowns, X for misses and
+    the corresponding 1-5 ship number if it was a hit.
+    Uses slack's attachment feature to make it color-coded for each team.
+    :param board: a 10x10 nested list which is some team's hit-detection board
+"""
 def visualizeBS(board):
     global bship_turn
     lettering = lambda a: {0:'A ', 1:'B ', 2:'C ', 3:'D', 4:'E ', 5:'F ', 6:'G', 7:'H', 8:'I  ', 9:'J '}[a]
     text = "*LEGEND*: *?* = Have not fired | *X* = MISS | *[1-5]* HIT on: (1)Carrier, (2)Battleship, (3)Submarine, (4)Destroyer, (5)Cruiser\n"
     vis = ""
-    vis += "* / 1    2   3    4    5   6    7   8    9   10\n"
+    vis += "* / 1    2   3    4    5   6    7   8    9   10\n" # I dont know why this spacing turns out right but it does
     for y in range(0, len(board)):
         vis += lettering(y)
         vis += "| "
