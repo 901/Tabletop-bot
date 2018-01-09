@@ -668,7 +668,7 @@ def handleBattleship(user_id, command, channel):
     global red_bship_board, blue_bship_board, red_hit_detection, blue_hit_detection, bship_turn
     global red_wins, blue_wins
     bs_start = "battleship-start"
-    bs_play = "battleship"
+    bs_play = "fire"
     bs_help = "battleship-help"
 
     response = ""
@@ -714,7 +714,7 @@ def handleBattleship(user_id, command, channel):
         ship_name = lambda b: {1: 'Carrier', 2:'Battleship', 3:'Submarine', 4:'Destroyer', 5:'Cruiser'}[b]
         target = command.split(" ")
         if(len(target) < 3):
-            response = "Check your syntax: try `@tabletop_bot battleship [A-J] [1-10]`"
+            response = "Check your syntax: try `@tabletop_bot fire [A-J] [1-10]`"
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
@@ -724,7 +724,7 @@ def handleBattleship(user_id, command, channel):
         try:
             targetx = placement(str(target[1]).upper()) #A-J -> 0-9
         except KeyError:
-            response = "Check your syntax: try `@tabletop_bot battleship [A-J] [1-10]`"
+            response = "Check your syntax: try `@tabletop_bot fire [A-J] [1-10]`"
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
@@ -734,7 +734,7 @@ def handleBattleship(user_id, command, channel):
         try:
             targety = int(target[2])-1
         except ValueError, TypeError:
-            response = "Check your syntax: try `@tabletop_bot battleship [A-J] [1-10]`"
+            response = "Check your syntax: try `@tabletop_bot fire [A-J] [1-10]`"
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
@@ -801,7 +801,7 @@ def handleBattleship(user_id, command, channel):
         if bship_turn is 0:
             if checkBSVictory(red_hit_detection, blue_bship_board):
                 response = "Congrats! Red Team has won the game!!\n"
-                response += "A new ship layout has been set for both teams. You can start playing with `@tabletop_bot battleship [A-J] `. *Winning team gets first shot!*\n".format(currentTurn(bship_turn))
+                response += "A new ship layout has been set for both teams. You can start playing with `@tabletop_bot fire [A-J] [1-10]`. *Winning team gets first shot!*\n".format(currentTurn(bship_turn))
                 slack_client.api_call(
                     "chat.postMessage",
                     channel=channel,
@@ -815,7 +815,7 @@ def handleBattleship(user_id, command, channel):
         if bship_turn is 1:
             if checkBSVictory(blue_hit_detection, red_bship_board):
                 response = "Congrats! Blue Team has won the game!!\n".format(currentTurn(bship_turn))
-                response += "A new ship layout has been set for both teams. You can start playing with `@tabletop_bot battleship [A-J] `. *Winning team gets first shot!*\n"
+                response += "A new ship layout has been set for both teams. You can start playing with `@tabletop_bot fire [A-J] [1-10]`. *Winning team gets first shot!*\n"
                 slack_client.api_call(
                     "chat.postMessage",
                     channel=channel,
@@ -835,7 +835,6 @@ def visualizeBS(board):
     text = "*?* = Have not fired | *X* = MISS | *[1-5]* HIT on: (1)Carrier, (2)Battleship, (3)Submarine, (4)Destroyer, (5)Cruiser\n"
     vis = ""
     vis += "+/ 1    2   3    4    5   6    7   8    9   10\n"
-    #vis += "+/ v--v--v--v--v--v--v-v--v--v\n"
     for y in range(0, len(board)):
         vis += lettering(y)
         vis += "| "
