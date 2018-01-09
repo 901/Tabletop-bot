@@ -20,14 +20,17 @@ Add this bot as an app to any channel, and run the bot. The following commands c
 - \@tabletop_bot leaderboard : show the current leaderboard
 
 # Omg it works!!!
+- Tic Tac Toe
 <img src="img/ttt.png" height="500" width="600">
+- Connect 4
 <img src="img/connect4.png" height="500" width="600">
+- Battleship
 <img src="img/battleship.png" height="500" width="600">
 
 # FAQs
 - Help! I found a bug and it did a thing it wasn't supposed to!!!
     1. Just open an issue, or let me know about it
 - Why cant we pick our battleship positions for the battleship game?
-    1. Would you really want that info publicly visible on a slack channel?
-    2. "But why cant we DM the bot where we want to put the ships?"
-        - Concurrency issues with your teammates, and also the setup would literally take forever. Just have fun!
+    ->Would you really want that info publicly visible on a slack channel?
+    ->->"But why cant we DM the bot where we want to put the ships?"
+    ->->->Concurrency issues with your teammates, and also the setup would literally take forever. Just have fun!
