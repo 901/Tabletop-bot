@@ -31,6 +31,4 @@ Add this bot as an app to any channel, and run the bot. The following commands c
 - Help! I found a bug and it did a thing it wasn't supposed to!!!
     1. Just open an issue, or let me know about it
 - Why cant we pick our battleship positions for the battleship game?
-    ->Would you really want that info publicly visible on a slack channel?
-    ->->"But why cant we DM the bot where we want to put the ships?"
-    ->->->Concurrency issues with your teammates, and also the setup would literally take forever. Just have fun!
+    1. Would you really want that info publicly visible on a slack channel? 
