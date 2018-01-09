@@ -43,8 +43,7 @@ c4_turn = 0
 c4_total_turns = 0
 
 #battleship set
-red_bship_board = [[0 for x in range(0,10)] for y in range(0,10)]
-blue_bship_board = [[0 for x in range(0,10)] for y in range(0,10)]
+red_bship_board, blue_bship_board = setupBattleship([[0 for x in range(0,10)] for y in range(0,10)], [[0 for x in range(0,10)] for y in range(0,10)])
 red_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
 blue_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
 red_ships_left = 5
@@ -165,14 +164,16 @@ def handle_command(user_id, command, channel):
 """
 def handleHelp(user_id, command, channel):
     response = ""
-    response += "Hi! I'm tabletop bot - I currently support playing Tic-Tac-Toe and Connect 4 with your whole slack team on this channel!\n"
+    response += "Hi! I'm tabletop bot - I currently support playing *Tic-Tac-Toe*, *Connect 4* and *Battleship* with your whole slack team on this channel!\n"
     response += "{}, you are currently on {}.\n".format(members_list[user_id].split(" ")[0], getUserTeam(user_id))
     response += "Preface all commands with a Direct Mention @tabletop_bot.\n"
     response += "To get started, try these commands for the games you wan to play: \n"
     response += "1. `ttt-help`: displays info about the tic tac toe game, and how to participate.\n"
     response += "2. `c4-help`: displays info about connect 4, and how to join.\n"
     response += "3. `ttt-play [1-9]`: place a tic tac toe marker for your team at spot 1-9 on the board. Example: `ttt-play 2`.\n"
-    response += "4. `c4-play [1-7]`: place a marker for your team on the connect 4 board at columns 1-7. Example: `c4-play 7`."
+    response += "4. `c4-play [1-7]`: place a marker for your team on the connect 4 board at columns 1-7. Example: `c4-play 7`.\n"
+    response += "5. `battleship-start`: starts a new game of battleship! (places ships randomly for both teams)\n"
+    response += "Check the leaderboard with the `leaderboard` command!"
     slack_client.api_call(
         "chat.postMessage",
         channel=channel,
@@ -674,12 +675,14 @@ def handleBattleship(user_id, command, channel):
 
     """
         Command <bs-start>: (re)starts the battleship game, initiates turn
+        Will also set up a new board with a new ship layout and reset the hit detection boards
     """
     if command.startswith(bs_start):
         red_bship_board, blue_bship_board = setupBattleship(red_bship_board, blue_bship_board)
+        red_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
+        blue_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
         bship_turn = 0
         response = "Starting Battleship! It is now {}'s turn. This is the board:\n".format(currentTurn(bship_turn))
-
         response += "The ships have been placed! *You will not see the ships, only where you've hit*.\n To shoot, type: `@tabletop-bot battleship [A-J] [1-10]` A-J are rows, 1-10 correspond to the columns of the board."
         slack_client.api_call(
             "chat.postMessage",
@@ -693,8 +696,8 @@ def handleBattleship(user_id, command, channel):
     """
     if command.startswith(bs_help):
         response += "To participate type: `@tabletop-bot battleship [A-J] [1-10]` where A-J are rows, and 1-10 are columns left -> right."
-        response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(bship_turn))
-        response += "In Battleship, this is where your team has currently hit/missed.\n"
+        response += "\nYou are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(bship_turn))
+        response += "In Battleship, this is where your team has currently hit/missed. The objective is to destroy all your enemies ships by correctly placing your shots!\n"
         slack_client.api_call(
             "chat.postMessage",
             channel=channel,
@@ -719,7 +722,7 @@ def handleBattleship(user_id, command, channel):
             )
             return None
         try:
-            targetx = placement(target[1]) #A-J -> 0-9
+            targetx = placement(str(target[1]).upper()) #A-J -> 0-9
         except KeyError:
             response = "Check your syntax: try `@tabletop_bot battleship [A-J] [1-10]`"
             slack_client.api_call(
@@ -797,7 +800,8 @@ def handleBattleship(user_id, command, channel):
 
         if bship_turn is 0:
             if checkBSVictory(red_hit_detection, blue_bship_board):
-                response = "Congrats! {} has won the game!! Start another game by typing `@tabletop_bot battleship-start`. *Winning team gets first shot!*\n".format(currentTurn(bship_turn))
+                response = "Congrats! Red Team has won the game!!\n"
+                response += "A new ship layout has been set for both teams. You can start playing with `@tabletop_bot battleship [A-J] `. *Winning team gets first shot!*\n".format(currentTurn(bship_turn))
                 slack_client.api_call(
                     "chat.postMessage",
                     channel=channel,
@@ -810,8 +814,8 @@ def handleBattleship(user_id, command, channel):
                 return None
         if bship_turn is 1:
             if checkBSVictory(blue_hit_detection, red_bship_board):
-                response = "Congrats! {} has won the game!!\n".format(currentTurn(bship_turn))
-                response += "A new ship layout has been set for both teams. You can start playing with `@tabletop_bot battleship [A-J] [1-10]`. *Winning team gets first shot!*\n"
+                response = "Congrats! Blue Team has won the game!!\n".format(currentTurn(bship_turn))
+                response += "A new ship layout has been set for both teams. You can start playing with `@tabletop_bot battleship [A-J] `. *Winning team gets first shot!*\n"
                 slack_client.api_call(
                     "chat.postMessage",
                     channel=channel,
@@ -828,16 +832,19 @@ def handleBattleship(user_id, command, channel):
 def visualizeBS(board):
     global bship_turn
     lettering = lambda a: {0:'A ', 1:'B ', 2:'C ', 3:'D', 4:'E ', 5:'F ', 6:'G', 7:'H', 8:'I  ', 9:'J '}[a]
-    text = "*0* = Have not fired | *X* = MISS | *[1-5]* HIT on: (1)Carrier, (2)Battleship, (3)Submarine, (4)Destroyer, (5)Cruiser\n"
+    text = "*?* = Have not fired | *X* = MISS | *[1-5]* HIT on: (1)Carrier, (2)Battleship, (3)Submarine, (4)Destroyer, (5)Cruiser\n"
     vis = ""
-    vis += "//// 1  2  3  4  5  6  7  8  9  10\n"
-    vis += "---------------------------------\n"
+    vis += "+/ 1    2   3    4    5   6    7   8    9   10\n"
+    #vis += "+/ v--v--v--v--v--v--v-v--v--v\n"
     for y in range(0, len(board)):
         vis += lettering(y)
         vis += "| "
         for z in board[y]:
-            vis += str(z)
-            vis += "  "
+            if z is 0:
+                vis += "? "
+            else:
+                vis += str(z)
+            vis += "   "
         vis += "\n"
     if bship_turn is 0:
         attachment = json.dumps([

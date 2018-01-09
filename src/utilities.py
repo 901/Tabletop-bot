@@ -400,7 +400,8 @@ def setupBattleship(red_board, blue_board):
     return red_board, blue_board
 
 """
-    replace all -1s in the hit board with 0s and simply check if they match
+    Replace all Xs in the hit board with 0s and simply check if the hit board from
+    one team matches the ship board of the other team match
 """
 def checkBSVictory(hit_board, opposing_board):
 
@@ -408,12 +409,10 @@ def checkBSVictory(hit_board, opposing_board):
         for i in z:
             if i is 'X':
                 i = 0
-
-    for x in range(0, len(hit_board)):
-        for y in range(0, len(hit_board)):
-            if hit_board[x][y] != opposing_board[x][y]:
-                return False
-    return True
+    if hit_board == opposing_board:
+        return True
+    else:
+        return False
 
 #just have to play in B 2
 def rigBattleship():
