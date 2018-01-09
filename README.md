@@ -20,9 +20,9 @@ Add this bot as an app to any channel, and run the bot. The following commands c
 - \@tabletop_bot leaderboard : show the current leaderboard
 
 # Omg it works!!!
-<img src="img/ttt.png" height="500" width="200">
-<img src="img/c4.png" height="500" width="200">
-<img src="img/battleship.png" height="500" width="200">
+<img src="img/ttt.png" height="500" width="600">
+<img src="img/connect4.png" height="500" width="600">
+<img src="img/battleship.png" height="500" width="600">
 
 # FAQs
 - Help! I found a bug and it did a thing it wasn't supposed to!!!
