@@ -1,3 +1,4 @@
+import random
 """
     //-- Begin Connect4 Diagonal checking helper functions
 """
@@ -23,7 +24,9 @@ def get_forward_diagonals(grid):
 
 """
     Given the current turn and board, checks if someone has won the on-going
-    connect 4 game (7x7 board default)
+    connect 4 game (7x7 board default.
+    :param c4_board: nested 7x7 list that represents the current connect 4 gamestate
+    :param c4_turn: binary counter to determine the correct team's turn
 """
 def checkC4Victory(c4_board, c4_turn):
     if c4_turn is 0:
@@ -86,6 +89,8 @@ def checkC4Victory(c4_board, c4_turn):
 """
     Given the last placement and board, checks if someone has won the on-going
     tic tac toe game (3x3 board default)
+    :param x, y: coordinates correlating to last placed marker on a 3x3 ttt board
+    :param ttt_board: nested 3x3 list to represent the ttt gamestate
 """
 def CheckTTTVictory(x, y, ttt_board):
     #check if previous move caused a win on vertical line
@@ -113,6 +118,309 @@ def CheckTTTVictory(x, y, ttt_board):
         return True
 
     return False
+
+def setupBattleship(red_board, blue_board):
+    #carrier
+    while True:
+        startx = int(random.randint(0, 9))
+        starty = int(random.randint(0, 9))
+        direction = int(random.randint(0, 1))
+
+        #horizontal placement
+        if direction is 0:
+            try:
+                if red_board[startx][starty] == 0 and red_board[startx+1][starty] == 0 and red_board[startx+2][starty] == 0 and red_board[startx+3][starty] == 0 and red_board[startx+4][starty] == 0:
+                    red_board[startx][starty] = 1
+                    red_board[startx+1][starty] = 1
+                    red_board[startx+2][starty] = 1
+                    red_board[startx+3][starty] = 1
+                    red_board[startx+4][starty] = 1
+                    break
+            except IndexError:
+                continue
+        else:
+            try:
+                if red_board[startx][starty] == 0 and red_board[startx][starty+1] == 0 and red_board[startx][starty+2] == 0 and red_board[startx][starty+3] == 0 and red_board[startx][starty+4] == 0:
+                    red_board[startx][starty] = 1
+                    red_board[startx][starty+1] = 1
+                    red_board[startx][starty+2] = 1
+                    red_board[startx][starty+3] = 1
+                    red_board[startx][starty+4] = 1
+                    break
+            except IndexError:
+                continue
+    #battlship
+    while True:
+        startx = int(random.randint(0, 9))
+        starty = int(random.randint(0, 9))
+        direction = int(random.randint(0, 1))
+
+        #horizontal placement
+        if direction is 0:
+            try:
+                #pick for red team
+                if red_board[startx][starty] == 0 and red_board[startx+1][starty] == 0 and red_board[startx+2][starty] == 0 and red_board[startx+3][starty] == 0:
+                    red_board[startx][starty] = 2
+                    red_board[startx+1][starty] = 2
+                    red_board[startx+2][starty] = 2
+                    red_board[startx+3][starty] = 2
+                    break
+            except IndexError:
+                continue
+        else:
+            try:
+                #pick for red team
+                if red_board[startx][starty] == 0 and red_board[startx][starty+1] == 0 and red_board[startx][starty+2] == 0 and red_board[startx][starty+3] == 0:
+                    red_board[startx][starty] = 2
+                    red_board[startx][starty+1] = 2
+                    red_board[startx][starty+2] = 2
+                    red_board[startx][starty+3] = 2
+                    break
+            except IndexError:
+                continue
+    #submarine
+    while True:
+        startx = int(random.randint(0, 9))
+        starty = int(random.randint(0, 9))
+        direction = int(random.randint(0, 1))
+
+        #horizontal placement
+        if direction is 0:
+            try:
+                #pick for red team
+                if red_board[startx][starty] == 0 and red_board[startx+1][starty] == 0 and red_board[startx+2][starty] == 0:
+                    red_board[startx][starty] = 3
+                    red_board[startx+1][starty] = 3
+                    red_board[startx+2][starty] = 3
+                    break
+            except IndexError:
+                continue
+        else:
+            try:
+                #pick for red team
+                if red_board[startx][starty] == 0 and red_board[startx][starty+1] == 0 and red_board[startx][starty+2] == 0:
+                    red_board[startx][starty] = 3
+                    red_board[startx][starty+1] = 3
+                    red_board[startx][starty+2] = 3
+                    break
+            except IndexError:
+                continue
+    #destroyer
+    while True:
+        startx = int(random.randint(0, 9))
+        starty = int(random.randint(0, 9))
+        direction = int(random.randint(0, 1))
+        #horizontal placement
+
+        if direction is 0:
+            try:
+                #pick for red team
+                if red_board[startx][starty] == 0 and red_board[startx+1][starty] == 0 and red_board[startx+2][starty] == 0:
+                    red_board[startx][starty] = 4
+                    red_board[startx+1][starty] = 4
+                    red_board[startx+2][starty] = 4
+                    break
+            except IndexError:
+                continue
+        else:
+            try:
+                #pick for red team
+                if red_board[startx][starty] == 0 and red_board[startx][starty+1] == 0 and red_board[startx][starty+2] == 0:
+                    red_board[startx][starty] = 4
+                    red_board[startx][starty+1] = 4
+                    red_board[startx][starty+2] = 4
+                    break
+            except IndexError:
+                continue
+    #cruister
+    while True:
+        startx = int(random.randint(0, 9))
+        starty = int(random.randint(0, 9))
+        direction = int(random.randint(0, 1))
+        #horizontal placement
+
+        if direction is 0:
+            try:
+                #pick for red team
+                if red_board[startx][starty] == 0 and red_board[startx+1][starty] == 0:
+                    red_board[startx][starty] = 5
+                    red_board[startx+1][starty] = 5
+                    break
+            except IndexError:
+                continue
+        else:
+            try:
+                #pick for red team
+                if red_board[startx][starty] == 0 and red_board[startx][starty+1] == 0:
+                    red_board[startx][starty] = 5
+                    red_board[startx][starty+1] = 5
+                    break
+            except IndexError:
+                continue
+    """BLUE TEAM"""
+    #carrier
+    while True:
+        startx = int(random.randint(0, 9))
+        starty = int(random.randint(0, 9))
+        direction = int(random.randint(0, 1))
+
+        #horizontal placement
+        if direction is 0:
+            try:
+                #pick for red team
+                if blue_board[startx][starty] == 0 and blue_board[startx+1][starty] == 0 and blue_board[startx+2][starty] == 0 and blue_board[startx+3][starty] == 0 and blue_board[startx+4][starty] == 0:
+                    blue_board[startx][starty] = 1
+                    blue_board[startx+1][starty] = 1
+                    blue_board[startx+2][starty] = 1
+                    blue_board[startx+3][starty] = 1
+                    blue_board[startx+4][starty] = 1
+                    break
+            except IndexError:
+                continue
+        else:
+            try:
+                #pick for red team
+                if blue_board[startx][starty] == 0 and blue_board[startx][starty+1] == 0 and blue_board[startx][starty+2] == 0 and blue_board[startx][starty+3] == 0 and blue_board[startx][starty+4] == 0:
+                    blue_board[startx][starty] = 1
+                    blue_board[startx][starty+1] = 1
+                    blue_board[startx][starty+2] = 1
+                    blue_board[startx][starty+3] = 1
+                    blue_board[startx][starty+4] = 1
+                    break
+            except IndexError:
+                continue
+    #battlship
+    while True:
+        startx = int(random.randint(0, 9))
+        starty = int(random.randint(0, 9))
+        direction = int(random.randint(0, 1))
+
+        #horizontal placement
+        if direction is 0:
+            try:
+                #pick for red team
+                if blue_board[startx][starty] == 0 and blue_board[startx+1][starty] == 0 and blue_board[startx+2][starty] == 0 and blue_board[startx+3][starty] == 0:
+                    blue_board[startx][starty] = 2
+                    blue_board[startx+1][starty] = 2
+                    blue_board[startx+2][starty] = 2
+                    blue_board[startx+3][starty] = 2
+                    break
+            except IndexError:
+                continue
+        else:
+            try:
+                #pick for red team
+                if blue_board[startx][starty] == 0 and blue_board[startx][starty+1] == 0 and blue_board[startx][starty+2] == 0 and blue_board[startx][starty+3] == 0:
+                    blue_board[startx][starty] = 2
+                    blue_board[startx][starty+1] = 2
+                    blue_board[startx][starty+2] = 2
+                    blue_board[startx][starty+3] = 2
+                    break
+            except IndexError:
+                continue
+    #submarine
+    while True:
+        startx = int(random.randint(0, 9))
+        starty = int(random.randint(0, 9))
+        direction = int(random.randint(0, 1))
+
+        #horizontal placement
+        if direction is 0:
+            try:
+                #pick for red team
+                if blue_board[startx][starty] == 0 and blue_board[startx+1][starty] == 0 and blue_board[startx+2][starty] == 0:
+                    blue_board[startx][starty] = 3
+                    blue_board[startx+1][starty] = 3
+                    blue_board[startx+2][starty] = 3
+                    break
+            except IndexError:
+                continue
+        else:
+            try:
+                #pick for red team
+                if blue_board[startx][starty] == 0 and blue_board[startx][starty+1] == 0 and blue_board[startx][starty+2] == 0:
+                    blue_board[startx][starty] = 3
+                    blue_board[startx][starty+1] = 3
+                    blue_board[startx][starty+2] = 3
+                    break
+            except IndexError:
+                continue
+    #destroyer
+    while True:
+        startx = int(random.randint(0, 9))
+        starty = int(random.randint(0, 9))
+        direction = int(random.randint(0, 1))
+        #horizontal placement
+
+        if direction is 0:
+            try:
+                #pick for red team
+                if blue_board[startx][starty] == 0 and blue_board[startx+1][starty] == 0 and blue_board[startx+2][starty] == 0:
+                    blue_board[startx][starty] = 4
+                    blue_board[startx+1][starty] = 4
+                    blue_board[startx+2][starty] = 4
+                    break
+            except IndexError:
+                continue
+        else:
+            try:
+                #pick for red team
+                if blue_board[startx][starty] == 0 and blue_board[startx][starty+1] == 0 and blue_board[startx][starty+2] == 0:
+                    blue_board[startx][starty] = 4
+                    blue_board[startx][starty+1] = 4
+                    blue_board[startx][starty+2] = 4
+                    break
+            except IndexError:
+                continue
+    #cruister
+    while True:
+        startx = int(random.randint(0, 9))
+        starty = int(random.randint(0, 9))
+        direction = int(random.randint(0, 1))
+        #horizontal placement
+
+        if direction is 0:
+            try:
+                #pick for red team
+                if blue_board[startx][starty] == 0 and blue_board[startx+1][starty] == 0:
+                    blue_board[startx][starty] = 5
+                    blue_board[startx+1][starty] = 5
+                    break
+            except IndexError:
+                continue
+        else:
+            try:
+                #pick for red team
+                if blue_board[startx][starty] == 0 and blue_board[startx][starty+1] == 0:
+                    blue_board[startx][starty] = 5
+                    blue_board[startx][starty+1] = 5
+                    break
+            except IndexError:
+                continue
+    return red_board, blue_board
+
+"""
+    replace all -1s in the hit board with 0s and simply check if they match
+"""
+def checkBSVictory(hit_board, opposing_board):
+
+    for z in hit_board:
+        for i in z:
+            if i is 'X':
+                i = 0
+
+    for x in range(0, len(hit_board)):
+        for y in range(0, len(hit_board)):
+            if hit_board[x][y] != opposing_board[x][y]:
+                return False
+    return True
+
+#just have to play in B 2
+def rigBattleship():
+    a = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 5, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 2, 2, 2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 3, 3, 3, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 4, 4, 4, 0, 0, 0]]
+    b = [[0, 0, 0, 0, 3, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+    c = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 5, 5, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 2, 2, 2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 3, 3, 3, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 4, 4, 4, 0, 0, 0]]
+    return a, b, c
 
 """
     Special push method that adds in the element to position after the last non-zero term

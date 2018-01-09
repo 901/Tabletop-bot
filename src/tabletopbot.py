@@ -13,7 +13,6 @@ TODO:
 """
 # instantiate Slack client
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
-# starterbot's user ID in Slack: value is assigned after the bot starts up
 bot_id = None
 
 # constants
@@ -43,10 +42,19 @@ c4_board = [[0 for x in range(0,7)] for y in range(0,7)]
 c4_turn = 0
 c4_total_turns = 0
 
+#battleship set
+red_bship_board = [[0 for x in range(0,10)] for y in range(0,10)]
+blue_bship_board = [[0 for x in range(0,10)] for y in range(0,10)]
+red_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
+blue_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
+red_ships_left = 5
+blue_ships_left = 5
+bship_turn = 0
+
 """
-    Creates a userID -> Real Name mapping of all users in the channel
-    @param userlist is a JSON returned by users.list api call
-    @param channel_user_list is a list of members in a specific channel
+    Creates a userID -> Real Name mapping of all users in the channel given all existing users
+    :param userlist: JSON returned by users.list api call
+    :param channel_user_list: list of members in a specific channel (by ID)
 """
 def construct_userlist(userlist, channel_user_list):
     global bot_id
@@ -65,6 +73,7 @@ def construct_userlist(userlist, channel_user_list):
     If its not found, then this function returns None.
     Also handles users joining and leaving the channel by updating member list with new users and removing
     team members who leave the channel.
+    :param slack_events: incoming events from the Slack RTM API
 """
 def parse_bot_commands(slack_events):
     channel = ""
@@ -124,10 +133,13 @@ def parse_direct_mention(message_text):
 
 """
     Executes bot command if the command is known, and passes it to the correct handler
-    TTT = tic tac Toe
-    STTT = Super tic tac toe
-    c4 = Connect 4s
+    ttt = tic tac Toe
+    sttt = Super tic tac toe
+    c4 = Connect 4
     leaderboard = Show the current leaderboard standings
+    :param user_id: user ID that was read from the slack real-time messaging event
+    :param command: user's command (after being stripped of direct mention)
+    :param channel: current operating channel (by ID), parsed from RTM Event
 """
 def handle_command(user_id, command, channel):
     if command.startswith("help"):
@@ -141,6 +153,9 @@ def handle_command(user_id, command, channel):
 
     if command.startswith("c4"):
         handleC4(user_id, command, channel)
+
+    if command.startswith("battleship"):
+        handleBattleship(user_id, command, channel)
 
     if command.startswith("leaderboard"):
         showLeaderboard(user_id, command, channel)
@@ -341,6 +356,7 @@ def handleTTT(user_id, command, channel):
 
 """
     Method to display the current tic tac toe (TTT) board gamestate with fancy slack emojis
+    :param channel: current operating channel by ID
 """
 def visualizeTTT(channel):
     global ttt_board
@@ -515,7 +531,7 @@ def handleC4(user_id, command, channel):
     """
     if command.startswith(c4_help):
         response += "To participate type: `@tabletop-bot c4-play [1-7]` where 1-7 correspond to left -> right columns on the board."
-        response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(ttt_turn))
+        response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(c4_turn))
         slack_client.api_call(
             "chat.postMessage",
             channel=channel,
@@ -605,9 +621,9 @@ def handleC4(user_id, command, channel):
                 text=response
             )
             c4_board = [[0 for x in range(0,7)] for y in range(0,7)]
-            if ttt_turn is 0:
+            if c4_turn is 0:
                 red_wins += 1
-            if ttt_turn is 1:
+            if c4_turn is 1:
                 blue_wins += 1
             return None
         else:
@@ -647,6 +663,200 @@ def visualizeC4(channel):
         text=response
     )
 
+def handleBattleship(user_id, command, channel):
+    global red_bship_board, blue_bship_board, red_hit_detection, blue_hit_detection, bship_turn
+    global red_wins, blue_wins
+    bs_start = "battleship-start"
+    bs_play = "battleship"
+    bs_help = "battleship-help"
+
+    response = ""
+
+    """
+        Command <bs-start>: (re)starts the battleship game, initiates turn
+    """
+    if command.startswith(bs_start):
+        red_bship_board, blue_bship_board = setupBattleship(red_bship_board, blue_bship_board)
+        bship_turn = 0
+        response = "Starting Battleship! It is now {}'s turn. This is the board:\n".format(currentTurn(bship_turn))
+
+        response += "The ships have been placed! *You will not see the ships, only where you've hit*.\n To shoot, type: `@tabletop-bot battleship [A-J] [1-10]` A-J are rows, 1-10 correspond to the columns of the board."
+        slack_client.api_call(
+            "chat.postMessage",
+            channel=channel,
+            text=response
+        )
+        return None
+
+    """
+        Command <battleship-help>: prints out a helper message so the user can figure out their team and how to play battleship
+    """
+    if command.startswith(bs_help):
+        response += "To participate type: `@tabletop-bot battleship [A-J] [1-10]` where A-J are rows, and 1-10 are columns left -> right."
+        response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(bship_turn))
+        response += "In Battleship, this is where your team has currently hit/missed.\n"
+        slack_client.api_call(
+            "chat.postMessage",
+            channel=channel,
+            text=response
+        )
+        if bship_turn is 0:
+            visualizeBS(red_hit_detection)
+        else:
+            visualizeBS(blue_hit_detection)
+        return None
+
+    if command.startswith(bs_play):
+        placement = lambda a: {'A':0, 'B':1, 'C':2, 'D':3, 'E':4, 'F':5, 'G':6, 'H':7, 'I':8, 'J':9}[a]
+        ship_name = lambda b: {1: 'Carrier', 2:'Battleship', 3:'Submarine', 4:'Destroyer', 5:'Cruiser'}[b]
+        target = command.split(" ")
+        if(len(target) < 3):
+            response = "Check your syntax: try `@tabletop_bot battleship [A-J] [1-10]`"
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+        try:
+            targetx = placement(target[1]) #A-J -> 0-9
+        except KeyError:
+            response = "Check your syntax: try `@tabletop_bot battleship [A-J] [1-10]`"
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+        try:
+            targety = int(target[2])-1
+        except ValueError, TypeError:
+            response = "Check your syntax: try `@tabletop_bot battleship [A-J] [1-10]`"
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+        if (targety < 0 or targety > 9):
+            response = "Check your column number. It must be 1-10 which correspond to left -> right columns"
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+        if bship_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
+            if blue_bship_board[targetx][targety] is not 0:
+                response += "Its a hit on the enemy's "
+                response += str(ship_name(blue_bship_board[targetx][targety]))
+                response += "!\n"
+                red_hit_detection[targetx][targety] = blue_bship_board[targetx][targety]
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+            else:
+                response += "Its a miss!\n"
+                red_hit_detection[targetx][targety] = 'X'
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+            visualizeBS(red_hit_detection)
+        elif bship_turn == 1 and str(user_id) in BLUE_TEAM: #valid action -> handle it
+            if red_bship_board[targetx][targety] is not 0:
+                response += "Its a hit on the enemy's "
+                response += str(ship_name(red_bship_board[targetx][targety]))
+                response += "!\n"
+                blue_hit_detection[targetx][targety] = red_bship_board[targetx][targety]
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+            else:
+                response += "Its a miss!\n"
+                blue_hit_detection[targetx][targety] = 'X'
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+            visualizeBS(blue_hit_detection)
+        else: #oops invalid/out of turn action
+            response = "It is not your team's turn {}, it is currently {}'s turn.\n".format(members_list[user_id].split(" ")[0], currentTurn(c4_turn))
+            slack_client.api_call(
+                "chat.postMessage",
+                channel=channel,
+                text=response
+            )
+            return None
+
+        if bship_turn is 0:
+            if checkBSVictory(red_hit_detection, blue_bship_board):
+                response = "Congrats! {} has won the game!! Start another game by typing `@tabletop_bot battleship-start`. *Winning team gets first shot!*\n".format(currentTurn(bship_turn))
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+                red_bship_board, blue_bship_board = setupBattleship(red_bship_board, blue_bship_board)
+                red_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
+                blue_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
+                red_wins += 1
+                return None
+        if bship_turn is 1:
+            if checkBSVictory(blue_hit_detection, red_bship_board):
+                response = "Congrats! {} has won the game!!\n".format(currentTurn(bship_turn))
+                response += "A new ship layout has been set for both teams. You can start playing with `@tabletop_bot battleship [A-J] [1-10]`. *Winning team gets first shot!*\n"
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+                red_bship_board, blue_bship_board = setupBattleship(red_bship_board, blue_bship_board)
+                red_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
+                blue_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
+                blue_wins += 1
+                return None
+        bship_turn = (bship_turn + 1) % 2
+
+"""Given a hit detection board, visualize it"""
+def visualizeBS(board):
+    global bship_turn
+    lettering = lambda a: {0:'A ', 1:'B ', 2:'C ', 3:'D', 4:'E ', 5:'F ', 6:'G', 7:'H', 8:'I  ', 9:'J '}[a]
+    text = "*0* = Have not fired | *X* = MISS | *[1-5]* HIT on: (1)Carrier, (2)Battleship, (3)Submarine, (4)Destroyer, (5)Cruiser\n"
+    vis = ""
+    vis += "//// 1  2  3  4  5  6  7  8  9  10\n"
+    vis += "---------------------------------\n"
+    for y in range(0, len(board)):
+        vis += lettering(y)
+        vis += "| "
+        for z in board[y]:
+            vis += str(z)
+            vis += "  "
+        vis += "\n"
+    if bship_turn is 0:
+        attachment = json.dumps([
+        {
+            "color": "#ff2b2b",
+            "text": "Red Team's Hit Board:\n " + str(vis),
+        }])
+    else:
+        attachment = json.dumps([{
+            "color": "008fef",
+            "text": "Blue Team's Hit Board:\n " + str(vis)
+        }
+        ])
+    slack_client.api_call(
+        "chat.postMessage",
+        channel=channel,
+        text=text,
+        attachments=attachment
+    )
 """
     Returns which team the user is on in string format (for help purposes)
 """
@@ -661,8 +871,9 @@ def getUserTeam(user_id):
 
 """
     Finds out which channel this bot is a part of and set the channel ID accordingly
+    :param bot_id: bot's user ID, retrieved through constructing a user dictionary
 """
-def setChannelID(members_list, bot_id):
+def setChannelID(bot_id):
     channels = slack_client.api_call("channels.list")
     print("setting Channel ID")
     for c in channels["channels"]:
@@ -678,7 +889,7 @@ if __name__ == "__main__":
         # Read bot's user ID by calling Web API method `auth.test`
         bot_id = slack_client.api_call("auth.test")["user_id"]
         # Get all users currently in the channel first, and assign them to a team
-        channel_id = setChannelID(members_list, bot_id)
+        channel_id = setChannelID(bot_id)
         channel_curr_info = slack_client.api_call("channels.info",channel=channel_id)
         members_list = construct_userlist(slack_client.api_call("users.list"), channel_curr_info["channel"]["members"])
 
