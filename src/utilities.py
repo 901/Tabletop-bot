@@ -122,19 +122,11 @@ def CheckTTTVictory(x, y, ttt_board):
 """
 def push(in_list, value):
     #list is full
-    #print in_list
     if in_list[len(in_list) - 1] is not 0:
         return in_list, -1
-
-    if in_list[0] is 0:
-        in_list[0] = value
-        return in_list, 0
-
-    for x in range(0, len(in_list)-1):
-        y = x+1 #leading pointer
-        if in_list[x] is not 0 and in_list[y] is 0:
-            in_list[y] = value
-            return in_list, 0, y
+    #find first occurance of 0, replace it, return
+    y = in_list.index(0)
+    in_list[y] = value
     return in_list, 0
 
 """

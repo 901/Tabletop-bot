@@ -543,7 +543,7 @@ def handleC4(user_id, command, channel):
         """ Error checking on input """
         try:
             target = int(target)
-        except TypeError:
+        except ValueError, TypeError:
             response = "Check your syntax: try `@tabletop_bot c4-play [1-7]`"
             slack_client.api_call(
                 "chat.postMessage",
