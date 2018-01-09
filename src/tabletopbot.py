@@ -9,6 +9,8 @@ from utilities import *
 TODO:
 - super tic tac Toe (on hold)
 - pokemon??
+:battleship:
+- check duplicate fires
 """
 # instantiate Slack client
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
@@ -246,7 +248,7 @@ def handleTTT(user_id, command, channel):
     if command.startswith(ttt_play):
         target = command.split(" ")
         if(len(target) < 2): #make sure the user has entered the command correctly
-            response = "Check your syntax: try `@tabletop_bot c4-play [1-7]`"
+            response = "Check your syntax: try `@tabletop_bot ttt-play [1-9]`"
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
@@ -266,7 +268,7 @@ def handleTTT(user_id, command, channel):
             return None
 
         if target < 1 or target > 9:
-            response = "Illegal bounds on target coordinates. Must be 1-9 which correspond to top left -> bottom right"
+            response = "Illegal bounds on target coordinates. Must be 1-9 which correspond to top-left -> bottom-right"
             slack_client.api_call(
                 "chat.postMessage",
                 channel=channel,
@@ -345,7 +347,7 @@ def handleTTT(user_id, command, channel):
                 countTurns = 0
                 return None
 
-        response += "To participate type: `@tabletop-bot ttt-play [1-9]` where 1-9 correspond to top-left to bottom-right."
+        response += "To participate type: `@tabletop-bot ttt-play [1-9]` where 1-9 correspond to top-left -> bottom-right."
         ttt_turn = (ttt_turn + 1) % 2
 
     # Sends the response back to the channel
@@ -533,6 +535,7 @@ def handleC4(user_id, command, channel):
     if command.startswith(c4_help):
         response += "To participate type: `@tabletop-bot c4-play [1-7]` where 1-7 correspond to left -> right columns on the board."
         response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(c4_turn))
+        response += "In Connect 4, the goal is to connect 4 of your team's markers in a horizontal, vertical or diagonal way.\n"
         slack_client.api_call(
             "chat.postMessage",
             channel=channel,
@@ -697,7 +700,7 @@ def handleBattleship(user_id, command, channel):
     """
     if command.startswith(bs_help):
         response += "To participate type: `@tabletop-bot battleship [A-J] [1-10]` where A-J are rows, and 1-10 are columns left -> right."
-        response += "\nYou are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(bship_turn))
+        response += "\nYou are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id), currentTurn(bship_turn))
         response += "In Battleship, this is where your team has currently hit/missed. The objective is to destroy all your enemies ships by correctly placing your shots!\n"
         slack_client.api_call(
             "chat.postMessage",
@@ -757,6 +760,15 @@ def handleBattleship(user_id, command, channel):
             return None
         # Execute the desired action of the turn, if its valid
         if bship_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
+            if red_hit_detection[targetx][targety] is not 0:
+                response = "Your team already fired at this location before. Please choose a new location with `@tabletop_bot fire [A-J] [1-10]`.\n"
+                response += "You can visualize the current board hit/miss state for your team with `@tabletop_bot battleship-help`."
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+                return None
             if blue_bship_board[targetx][targety] is not 0:
                 response += "Its a hit on the enemy's "
                 response += str(ship_name(blue_bship_board[targetx][targety]))
@@ -770,7 +782,7 @@ def handleBattleship(user_id, command, channel):
             else:
                 response += "Its a miss!\n"
                 # slight future optimization: also change the corresponding battleship board for easy comparing
-                # no replacing needed?
+                # no replacing needed for win checking then?
                 red_hit_detection[targetx][targety] = 'X'
                 slack_client.api_call(
                     "chat.postMessage",
@@ -779,6 +791,15 @@ def handleBattleship(user_id, command, channel):
                 )
             visualizeBS(red_hit_detection)
         elif bship_turn == 1 and str(user_id) in BLUE_TEAM: #valid action -> handle it
+            if blue_hit_detection[targetx][targety] is not 0:
+                response = "Your team already fired at this location before. Please choose a new location with `@tabletop_bot fire [A-J] [1-10]`.\n"
+                response += "You can visualize the current board hit/miss state for your team with `@tabletop_bot battleship-help`."
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel=channel,
+                    text=response
+                )
+                return None
             if red_bship_board[targetx][targety] is not 0:
                 response += "Its a hit on the enemy's "
                 response += str(ship_name(red_bship_board[targetx][targety]))
@@ -843,9 +864,9 @@ def handleBattleship(user_id, command, channel):
 def visualizeBS(board):
     global bship_turn
     lettering = lambda a: {0:'A ', 1:'B ', 2:'C ', 3:'D', 4:'E ', 5:'F ', 6:'G', 7:'H', 8:'I  ', 9:'J '}[a]
-    text = "*?* = Have not fired | *X* = MISS | *[1-5]* HIT on: (1)Carrier, (2)Battleship, (3)Submarine, (4)Destroyer, (5)Cruiser\n"
+    text = "*LEGEND*: *?* = Have not fired | *X* = MISS | *[1-5]* HIT on: (1)Carrier, (2)Battleship, (3)Submarine, (4)Destroyer, (5)Cruiser\n"
     vis = ""
-    vis += "+/ 1    2   3    4    5   6    7   8    9   10\n"
+    vis += "* / 1    2   3    4    5   6    7   8    9   10\n"
     for y in range(0, len(board)):
         vis += lettering(y)
         vis += "| "
