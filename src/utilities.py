@@ -22,13 +22,13 @@ def get_forward_diagonals(grid):
     //-- End Connect4 Diagonal checking helper functions
 """
 
-"""
-    Given the current turn and board, checks if someone has won the on-going
-    connect 4 game (7x7 board default.
-    :param c4_board: nested 7x7 list that represents the current connect 4 gamestate
-    :param c4_turn: binary counter to determine the correct team's turn
-"""
 def checkC4Victory(c4_board, c4_turn):
+    """
+        Given the current turn and board, checks if someone has won the on-going
+        connect 4 game (7x7 board default.
+        :param c4_board: nested 7x7 list that represents the current connect 4 gamestate
+        :param c4_turn: binary counter to determine the correct team's turn
+    """
     if c4_turn is 0:
         check = 1
     else:
@@ -86,13 +86,13 @@ def checkC4Victory(c4_board, c4_turn):
     #it all failed :(
     return False
 
-"""
-    Given the last placement and board, checks if someone has won the on-going
-    tic tac toe game (3x3 board default)
-    :param x, y: coordinates correlating to last placed marker on a 3x3 ttt board
-    :param ttt_board: nested 3x3 list to represent the ttt gamestate
-"""
 def CheckTTTVictory(x, y, ttt_board):
+    """
+        Given the last placement and board, checks if someone has won the on-going
+        tic tac toe game (3x3 board default)
+        :param x, y: coordinates correlating to last placed marker on a 3x3 ttt board
+        :param ttt_board: nested 3x3 list to represent the ttt gamestate
+    """
     #check if previous move caused a win on vertical line
     if (ttt_board[0][y] == ttt_board[1][y] == ttt_board[2][y]):
         if (ttt_board[0][y] == "-" or ttt_board[1][y] == "-" or ttt_board[2][y] == "-"):
@@ -120,6 +120,14 @@ def CheckTTTVictory(x, y, ttt_board):
     return False
 
 def setupBattleship(red_board, blue_board):
+    """
+        Given 2 empty boards for ships for each team, assign ships randomly for each board.
+        Order of placement: Carrier -> Battleship -> Submarine -> Destroyer -> Cruiser
+        Direction and starting coordinates are randomly set with randint(), and ships are placed accordingly
+        :param red_board: 10x10 zeroed 2-dimensional matrix that represents the red team's battleship placement
+        :param blue_board: 10x10 zeroed 2-dimensional matrix that represents the blue team's battleship placement
+    """
+    """RED TEAM"""
     #carrier
     while True:
         startx = int(random.randint(0, 9))
@@ -399,12 +407,11 @@ def setupBattleship(red_board, blue_board):
                 continue
     return red_board, blue_board
 
-"""
-    Replace all Xs in the hit board with 0s and simply check if the hit board from
-    one team matches the ship board of the other team match
-"""
 def checkBSVictory(hit_board, opposing_board):
-
+    """
+        Replace all Xs in the hit board with 0s and simply check if the hit board from
+        one team matches the ship board of the other team match
+    """
     for z in hit_board:
         for i in z:
             if i is 'X':
@@ -414,20 +421,13 @@ def checkBSVictory(hit_board, opposing_board):
     else:
         return False
 
-#just have to play in B 2
-def rigBattleship():
-    a = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 5, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 2, 2, 2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 3, 3, 3, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 4, 4, 4, 0, 0, 0]]
-    b = [[0, 0, 0, 0, 3, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
-    c = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 5, 5, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 2, 2, 2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 3, 3, 3, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 4, 4, 4, 0, 0, 0]]
-    return a, b, c
-
-"""
-    Special push method that adds in the element to position after the last non-zero term
-    For use with connect 4 only
-    usage c4_board[x] = push(c4_board[x], value)
-    returns updated list, status (-1 fail 1 success) and last updated index (for victory checking)
-"""
 def push(in_list, value):
+    """
+        Special push method that adds in the element to position after the last non-zero term
+        For use with connect 4 only
+        usage c4_board[x] = push(c4_board[x], value)
+        returns updated list, status (-1 fail 1 success) and last updated index (for victory checking)
+    """
     #list is full
     if in_list[len(in_list) - 1] is not 0:
         return in_list, -1
@@ -436,10 +436,10 @@ def push(in_list, value):
     in_list[y] = value
     return in_list, 0
 
-"""
-    Simply returns the string version of whose turn it is as opposed to adding if/else everywhere
-"""
 def currentTurn(turn):
+    """
+        Simply returns the string version of whose turn it is as opposed to adding if/else everywhere
+    """
     if turn == 0:
         return "Red Team"
     elif turn == 1:

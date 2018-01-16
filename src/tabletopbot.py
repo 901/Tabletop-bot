@@ -9,18 +9,16 @@ from utilities import *
 TODO:
 - super tic tac Toe (on hold)
 - pokemon??
-:battleship:
-- check duplicate fires
 """
 # instantiate Slack client
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 bot_id = None
 
-# constants
+# Constants
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
 MENTION_REGEX = "^<@(|[WU].+)>(.*)"
 
-#teams
+# Teams
 RED_TEAM = []
 BLUE_TEAM = []
 red_wins = 0
@@ -29,31 +27,31 @@ members_list = {}
 counter = 0
 addcounter = 0
 
-#Tic tac toe set
+# Tic tac toe set
 ttt_board = [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]
 ttt_turn = 0
 countTurns = 0
 
-#Super Tic tac toe set
+# Super Tic tac toe set
 sttt_turn = 0
 
-#Connect 4 set
+# Connect 4 set
 c4_board = [[0 for x in range(0,7)] for y in range(0,7)]
 c4_turn = 0
 c4_total_turns = 0
 
-#battleship set
+# Battleship set
 red_bship_board, blue_bship_board = setupBattleship([[0 for x in range(0,10)] for y in range(0,10)], [[0 for x in range(0,10)] for y in range(0,10)])
 red_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
 blue_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
 bship_turn = 0
 
-"""
-    Creates a userID -> Real Name mapping of all users in the channel given all existing users
-    :param userlist: JSON returned by users.list api call
-    :param channel_user_list: list of members in a specific channel (by ID)
-"""
 def construct_userlist(userlist, channel_user_list):
+    """
+        Creates a userID -> Real Name mapping of all users in the channel given all existing users
+        :param userlist: JSON returned by users.list api call
+        :param channel_user_list: list of members in a specific channel (by ID)
+    """
     global bot_id
     member_dict = {}
     for member_info in userlist["members"]:
@@ -64,15 +62,15 @@ def construct_userlist(userlist, channel_user_list):
             member_dict[member_info["id"]] = name
     return member_dict
 
-"""
-    Parses a list of events coming from the Slack RTM API to find bot commands.
-    If a bot command is found, this function returns a tuple of user_id, command, channel
-    If its not found, then this function returns None.
-    Also handles users joining and leaving the channel by updating member list with new users and removing
-    team members who leave the channel.
-    :param slack_events: incoming events from the Slack RTM API
-"""
 def parse_bot_commands(slack_events):
+    """
+        Parses a list of events coming from the Slack RTM API to find bot commands.
+        If a bot command is found, this function returns a tuple of user_id, command, channel
+        If its not found, then this function returns None.
+        Also handles users joining and leaving the channel by updating member list with new users and removing
+        team members who leave the channel.
+        :param slack_events: incoming events from the Slack RTM API
+    """
     channel = ""
     global addcounter, member_list
     for event in slack_events:
@@ -119,28 +117,27 @@ def parse_bot_commands(slack_events):
                 BLUE_TEAM.remove(event["user"])
     return None, None, None
 
-"""
-    Finds a direct mention (a mention that is at the beginning) in message text
-    and returns the user ID which was mentioned. If there is no direct mention, returns None
-"""
 def parse_direct_mention(message_text):
+    """
+        Finds a direct mention (a mention that is at the beginning) in message text
+        and returns the user ID which was mentioned. If there is no direct mention, returns None
+    """
     matches = re.search(MENTION_REGEX, message_text)
     # the first group contains the username, the second group contains the remaining message
     return (matches.group(1), matches.group(2).strip()) if matches else (None, None)
 
-"""
-    Executes bot command if the command is known, and passes it to the correct handler
-    ttt = tic tac Toe
-    sttt = Super tic tac toe
-    c4 = Connect 4
-    battleship/fire = play battleship
-    leaderboard = Show the current leaderboard standings
-    :param user_id: user ID that was read from the slack real-time messaging event
-    :param command: user's command (after being stripped of direct mention)
-    :param channel: current operating channel (by ID), parsed from RTM Event
-"""
 def handle_command(user_id, command, channel):
-
+    """
+        Executes bot command if the command is known, and passes it to the correct handler
+        ttt = tic tac Toe
+        sttt = Super tic tac toe
+        c4 = Connect 4
+        battleship/fire = play battleship
+        leaderboard = Show the current leaderboard standings
+        :param user_id: user ID that was read from the slack real-time messaging event
+        :param command: user's command (after being stripped of direct mention)
+        :param channel: current operating channel (by ID), parsed from RTM Event
+    """
     if command.startswith("help"):
         handleHelp(user_id, command, channel)
 
@@ -159,10 +156,10 @@ def handle_command(user_id, command, channel):
     if command.startswith("leaderboard"):
         showLeaderboard(user_id, command, channel)
 
-"""
-    Command <help> enumerates all possible commands for new users
-"""
 def handleHelp(user_id, command, channel):
+    """
+        Command <help> enumerates all possible commands for new users
+    """
     response = ""
     response += "Hi! I'm tabletop bot - I currently support playing *Tic-Tac-Toe*, *Connect 4* and *Battleship* with your whole slack team on this channel!\n"
     response += "{}, you are currently on {}.\n".format(members_list[user_id].split(" ")[0], getUserTeam(user_id))
@@ -181,10 +178,10 @@ def handleHelp(user_id, command, channel):
     )
     return None
 
-"""
-    Command <leaderboard> will display the current leaderboard using Slack's message attachment API
-"""
 def showLeaderboard(user_id, command, channel):
+    """
+        Command <leaderboard> will display the current leaderboard using Slack's message attachment API
+    """
     global red_wins, blue_wins
     text = ""
     attachment = json.dumps([
@@ -210,8 +207,13 @@ def showLeaderboard(user_id, command, channel):
         attachments=attachment
     )
 
-
 def handleTTT(user_id, command, channel):
+    """
+        Maintains and updates the on-going tic tac toe game in the slack through commands
+        :param user_id: The user's ID assigned by Slack
+        :param command: User's parsed command with the direct mention removed
+        :param channel: Channel ID that the bot is operating in
+    """
     ttt_start = "ttt-start"
     ttt_play = "ttt-play"
     ttt_help = "ttt-help"
@@ -355,11 +357,11 @@ def handleTTT(user_id, command, channel):
         text=response
     )
 
-"""
-    Method to display the current tic tac toe (TTT) board gamestate with fancy slack emojis
-    :param channel: current operating channel by ID
-"""
 def visualizeTTT(channel):
+    """
+        Method to display the current tic tac toe (TTT) board gamestate with fancy slack emojis
+        :param channel: current operating channel by ID
+    """
     global ttt_board
     response = ""
     for x in ttt_board:
@@ -377,132 +379,16 @@ def visualizeTTT(channel):
         text=response
     )
 
+# TODO - finish STTT
 def handleSTTT(user_id, command, channel):
-    global sttt_turn
-    sttt_start = "sttt-start"
-    sttt_play = "sttt-play"
-    sttt_help = "sttt-help"
-    placement = lambda y: {1:(0,0), 2:(0,1), 3:(0,2), 4:(1,0), 5:(1,1), 6:(1,2), 7:(2,0), 8:(2,1), 9:(2,2)}[y]
-    outer_placement = lambda y: {'a':0, 'b':1, 'c':2, 'd':3, 'e':4, 'f':5, 'g':6, 'h':7, 'i':8}[y]
-    count = 0
-    sttt_board = [[["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
-                    [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
-                    [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]]
-    # Default response is help text for the user
 
-    # Finds and executes the given command, filling in response
-    response = ""
-    # This is where you start to implement more commands!
-    if command.startswith(sttt_start):
-        sttt_turn = 0
-        response = "Starting SUPER Tic-Tac-Toe! It is now Red Team's turn. This is the board:\n"
-        count = 0
-        #will work out rendering a better image later
-        sttt_board = [[["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],[["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
-                        [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]],
-                        [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]], [["-", "-", "-"],["-", "-", "-"],["-", "-", "-"]]]]
-        #Actual output visualization should be:
-        #[0][0] [1][0] [2][0]
-        #[0][1] [1][1] [2][1]
-        #[0][2] [1][2] [2][2]
-        #divider
-        #[3][0] [4][0] [5][0]
-        #...
-        #[3][2] [4][2] [5][2]
-        #divider
-        #[6][0] [7][0] [8][0]
-        #...
-        #[6][2] [7][2] [8][2]
-        for x in sttt_board:
-            response += str(x[0])
-            response += " || "
-            response += str(x[1])
-            response += " || "
-            response += str(x[2])
-            count += 3
-            if count % 3 == 0:
-                response += "\n"
-            if count % 9 == 0:
-                response += "=======||=======||=======\n"
-
-        #response = "Sure...write some more code then I can do that!"
-        response += "To participate type: `@tabletop-bot sttt-play [a-i] [1-9]` Where a-i correspond to the outer boards top-left -> bottom right and 1-9 from top left -> bottom right in the respective inner squares"
-
-    if command.startswith(sttt_help):
-        response += "To participate type: `@tabletop-bot sttt-play [a-i] [1-9]` Where a-i correspond to the outer boards top-left -> bottom right and 1-9 from top left -> bottom right in the respective inner squares"
-        response += "Outer Boards: [a] [b] [c]\n[d] [e] [f]\n[g] [h] [i]\nInner Boards for each a-i: [1] [2] [3]\n[4] [5] [6]\n [7] [8] [9]\n"
-        response += "You are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id) , currentTurn(ttt_turn))
-
-
-    if command.startswith(sttt_play):
-        target_outer = command.split(" ")[1]
-        target_inner = command.split(" ")[2]
-        try:
-            target_inner = int(target_inner)
-        except TypeError:
-            response = "Illegal command format: try `@tabletop_bot ttt-play [1-9]`"
-            slack_client.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text=response
-            )
-            return None
-
-        if (target_inner < 1 or target_inner > 9) or (target_outer < 'a' or target_outer > 'i'):
-            response = "Illegal bounds on target coordinates. Must be a-i 1-9 which correspond to top left -> bottom right outer and inner"
-        targetx,targety = placement(target_inner)
-        outertarget = outer_placement(target_outer)
-
-        if sttt_turn == 0 and str(user_id) in RED_TEAM: #valid action -> handle it
-            if sttt_board[outertarget][targetx][targety] is "-":
-                sttt_board[outertarget][targetx][targety] = "X"
-                sttt_turn = (sttt_turn + 1) % 2
-            else:
-                response = "Cannot place there, there already exists a mark."
-        elif sttt_turn == 1 and str(user_id) in BLUE_TEAM: #valid action -> handle it
-            if sttt_board[outertarget][targetx][targety] is "-":
-                sttt_board[outertarget][targetx][targety] = "O"
-                sttt_turn = (sttt_turn + 1) % 2
-            else:
-                response = "Cannot place there, there already exists a mark."
-        else:
-            response = "It is not your team's turn {}, it is currently {}'s turn.\n".format(members_list[user_id], currentTurn(ttt_turn))
-
-        response += "\n"
-        counter = 0
-        for x in sttt_board:
-            response += str(x[0])
-            response += " || "
-            response += str(x[1])
-            response += " || "
-            response += str(x[2])
-            count += 3
-            if count % 3 == 0:
-                response += "\n"
-            if count % 9 == 0:
-                response += "=======||=======||=======\n"
-
-        """if CheckTTTVictory(targetx, targety):
-            response += "\nCongrats! {} has won this round! Restart this game with `@tabletop_bot ttt-start>\n".format(currentTurn(ttt_turn))
-            slack_client.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text=response
-            )
-            return None"""
-        #response = "Sure...write some more code then I can do that!"
-        response += "To participate type: `@tabletop-bot ttt-play [1-9]` where 1-9 correspond to top-left to bottom-right."
-    # Sends the response back to the channel
-    slack_client.api_call(
-        "chat.postMessage",
-        channel=channel,
-        text=response
-    )
-
-"""
-    Maintains and updates the on-going connect 4 game in the slack through commands
-"""
 def handleC4(user_id, command, channel):
+    """
+        Maintains and updates the on-going connect 4 game in the slack through commands
+        :param user_id: The user's ID assigned by Slack
+        :param command: User's parsed command with the direct mention removed
+        :param channel: Channel ID that the bot is operating in
+    """
     global c4_board, c4_turn, c4_total_turns, red_wins, blue_wins
     c4_start = "c4-start"
     c4_play = "c4-play"
@@ -517,7 +403,6 @@ def handleC4(user_id, command, channel):
         c4_board = [[0 for x in range(0,7)] for y in range(0,7)]
         c4_turn = 0
         response = "Starting Connect 4! It is now {}'s turn. This is the board:\n".format(currentTurn(c4_turn))
-        #response = "Sure...write some more code then I can do that!"
         response += "To participate type: `@tabletop-bot c4-play [1-7]` Must be 1-7 from left -> right columns."
         slack_client.api_call(
             "chat.postMessage",
@@ -643,10 +528,11 @@ def handleC4(user_id, command, channel):
 
         c4_turn = (c4_turn + 1) % 2
 
-"""
-    Prints out a visual representation of the Connect 4 Board state using fancy slack emojis
-"""
 def visualizeC4(channel):
+    """
+        Prints out a visual representation of the Connect 4 Board state using fancy slack emojis
+        :param channel: type String, Channel ID (assigned by Slack) that the bot is operating in
+    """
     global c4_board
     response = ""
     for x in range(6, -1, -1):
@@ -666,6 +552,13 @@ def visualizeC4(channel):
     )
 
 def handleBattleship(user_id, command, channel):
+    """
+        Maintains and updates the on-going battleship game in the slack through commands
+        Assigns and randomly places battleships on a board for each team.
+        :param user_id: The user's ID assigned by Slack
+        :param command: User's parsed command with the direct mention removed
+        :param channel: Channel ID that the bot is operating in
+    """
     global red_bship_board, blue_bship_board, red_hit_detection, blue_hit_detection, bship_turn
     global red_wins, blue_wins
     bs_start = "battleship-start"
@@ -683,9 +576,9 @@ def handleBattleship(user_id, command, channel):
         red_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
         blue_hit_detection = [[0 for x in range(0,10)] for y in range(0,10)]
         bship_turn = 0
-        response = "Starting Battleship! It is now {}'s turn. This is the board:\n".format(currentTurn(bship_turn))
+        response = "Starting Battleship! It is now {}'s turn.\n".format(currentTurn(bship_turn))
         response += "The ships have been placed! *You will not see your ships, only where you've fired*.\n"
-        response += "To shoot, type: `@tabletop-bot battleship [A-J] [1-10]` where A-J are rows, 1-10 correspond to the columns of the board.\n"
+        response += "To shoot, type: `@tabletop-bot fire [A-J] [1-10]` where A-J are rows, 1-10 correspond to the columns of the board.\n"
         slack_client.api_call(
             "chat.postMessage",
             channel=channel,
@@ -697,7 +590,7 @@ def handleBattleship(user_id, command, channel):
         Command <battleship-help>: prints out a helper message so the user can figure out their team and how to play battleship
     """
     if command.startswith(bs_help):
-        response += "To participate type: `@tabletop-bot battleship [A-J] [1-10]` where A-J are rows, and 1-10 are columns left -> right."
+        response += "To participate type: `@tabletop-bot fire [A-J] [1-10]` where A-J are rows, and 1-10 are columns left -> right."
         response += "\nYou are on {}. It is currently {}'s turn.\n".format(getUserTeam(user_id), currentTurn(bship_turn))
         response += "In Battleship, this is where your team has currently hit/missed. The objective is to destroy all your enemies ships by correctly placing your shots!\n"
         slack_client.api_call(
@@ -712,7 +605,7 @@ def handleBattleship(user_id, command, channel):
         return None
 
     """
-        Command <fire>: main battleship playing command, combined with coordinates executes the desired action of that team.
+        Command <fire [A-J] [1-9]>: main battleship playing command, executes the desired action of that team.
         Will print the hit-detection boards publicly because no information is leaked by doing this.
     """
     if command.startswith(bs_play):
@@ -858,13 +751,13 @@ def handleBattleship(user_id, command, channel):
                 return None
         bship_turn = (bship_turn + 1) % 2
 
-"""
-    Given a hit detection board for some team, visualize it. In this case, we use ? for unknowns, X for misses and
-    the corresponding 1-5 ship number if it was a hit.
-    Uses slack's attachment feature to make it color-coded for each team.
-    :param board: a 10x10 nested list which is some team's hit-detection board
-"""
 def visualizeBS(board):
+    """
+        Given a hit detection board for some team, visualize it. In this case, we use ? for unknowns, X for misses and
+        the corresponding 1-5 ship number if it was a hit.
+        Uses slack's attachment feature to make it color-coded for each team.
+        :param board: a 10x10 nested list which is some team's hit-detection board
+    """
     global bship_turn
     lettering = lambda a: {0:'A ', 1:'B ', 2:'C ', 3:'D', 4:'E ', 5:'F ', 6:'G', 7:'H', 8:'I  ', 9:'J '}[a]
     text = "*LEGEND*: *?* = Have not fired | *X* = MISS | *[1-5]* HIT on: (1)Carrier, (2)Battleship, (3)Submarine, (4)Destroyer, (5)Cruiser\n"
@@ -898,11 +791,12 @@ def visualizeBS(board):
         text=text,
         attachments=attachment
     )
-"""
-    Returns which team the user is on in string format (for help purposes)
-    :param user_id: a user's string ID assigned by Slack
-"""
+
 def getUserTeam(user_id):
+    """
+        Returns which team the user is on in string format (for help purposes)
+        :param user_id: a user's string ID assigned by Slack
+    """
     global RED_TEAM, BLUE_TEAM
     if user_id in RED_TEAM:
         return "Red Team"
@@ -911,11 +805,11 @@ def getUserTeam(user_id):
     else:
         return "Unknown team"
 
-"""
-    Finds out which channel this bot is a part of and set the channel ID accordingly
-    :param bot_id: bot's user ID, retrieved through constructing a user dictionary
-"""
 def setChannelID(bot_id):
+    """
+        Finds out which channel this bot is a part of and set the channel ID accordingly
+        :param bot_id: bot's user ID, retrieved through constructing a user dictionary
+    """
     channels = slack_client.api_call("channels.list")
     print("setting Channel ID")
     for c in channels["channels"]:
